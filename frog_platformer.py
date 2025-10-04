@@ -228,9 +228,9 @@ class Platform:
             frog.x += self.move_speed * self.move_direction
             
         elif self.platform_type == PlatformType.HARMFUL:
-            # Trigger game over or damage
-            # This will be handled by the game state manager
-            pass
+            # Trigger game over immediately when frog touches harmful platform
+            # Set a flag that the game loop will check
+            frog.touched_harmful_platform = True
     
     def update(self, dt=1/60):
         """
@@ -319,6 +319,7 @@ class Frog:
         self.on_ground = False
         self.on_slippery_surface = False
         self.slippery_platform = None
+        self.touched_harmful_platform = False
         
         # Load frog sprite
         import pygame
@@ -1245,6 +1246,10 @@ def update():
             frog.update()
             # Check platform collisions after frog physics update
             frog.check_platform_collision(platforms)
+            
+            # Check if frog touched a harmful platform
+            if frog.touched_harmful_platform:
+                game_state = GameState.GAME_OVER
         
         # Update camera to follow frog
         if camera and frog:

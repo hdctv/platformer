@@ -181,6 +181,31 @@ def run_platform_types_tests():
         print(f"Error running tests: {e}")
         return False
 
+def run_harmful_platform_tests():
+    """Run the harmful platform mechanics unit tests"""
+    print("Running harmful platform tests...")
+    print("=" * 50)
+    
+    try:
+        result = subprocess.run([sys.executable, "test_harmful_platforms.py"], 
+                              capture_output=True, text=True)
+        
+        print(result.stdout)
+        if result.stderr:
+            print("Warnings/Errors:")
+            print(result.stderr)
+        
+        if result.returncode == 0:
+            print("\n✅ All harmful platform tests passed!")
+        else:
+            print(f"\n❌ Tests failed with exit code {result.returncode}")
+            
+        return result.returncode == 0
+        
+    except Exception as e:
+        print(f"Error running tests: {e}")
+        return False
+
 if __name__ == "__main__":
     print("🐸 Frog Platformer Test Suite")
     print("=" * 60)
@@ -198,11 +223,13 @@ if __name__ == "__main__":
     platform_reachability_success = run_platform_reachability_tests()
     print()
     platform_types_success = run_platform_types_tests()
+    print()
+    harmful_platform_success = run_harmful_platform_tests()
     
     print("\n" + "=" * 60)
     all_success = (collision_success and camera_success and game_over_success and 
                    platform_gen_success and platform_cleanup_success and platform_reachability_success and
-                   platform_types_success)
+                   platform_types_success and harmful_platform_success)
     
     if all_success:
         print("🎉 All tests passed successfully!")

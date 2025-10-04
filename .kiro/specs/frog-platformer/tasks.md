@@ -99,7 +99,7 @@
     - Handle frog movement when standing on moving platforms
     - _Requirements: 4.4_
   
-  - [ ] 6.5 Implement harmful platform mechanics
+  - [x] 6.5 Implement harmful platform mechanics
     - Add damage/game over trigger for harmful platforms
     - Create distinct visual warning for harmful platforms
     - _Requirements: 4.5_
