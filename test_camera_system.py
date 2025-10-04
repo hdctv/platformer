@@ -24,7 +24,7 @@ class TestCameraSystem(unittest.TestCase):
         """Test camera initializes with correct default values"""
         camera = Camera()
         self.assertEqual(camera.y, 0.0)
-        self.assertEqual(camera.min_y, 0.0)
+        self.assertEqual(camera.max_y, 0.0)
         self.assertGreater(camera.follow_offset, 0)
     
     def test_world_to_screen_coordinate_conversion(self):
@@ -66,38 +66,42 @@ class TestCameraSystem(unittest.TestCase):
         """Test camera follows frog when frog moves upward"""
         # Position frog high enough to trigger camera movement
         # Camera follow_offset is HEIGHT * 0.3 = 600 * 0.3 = 180
-        # So frog needs to be at y > (HEIGHT - 180) = 420 to trigger camera movement
-        self.frog.y = 500  # High enough position to trigger camera movement
+        # So frog needs to be at y < (HEIGHT - 180) = 420 to trigger camera movement
+        # In Pygame coordinates, smaller Y = higher up
+        self.frog.y = 100  # High position (small Y value)
         
         initial_camera_y = self.camera.y
         self.camera.update(self.frog)
         
-        # Camera should move up to follow frog
-        self.assertGreater(self.camera.y, initial_camera_y)
+        # Camera should move up to follow frog (camera.y should decrease)
+        self.assertLess(self.camera.y, initial_camera_y)
     
     def test_camera_does_not_move_downward(self):
-        """Test camera doesn't move down when frog falls"""
-        # Move camera up first
-        self.frog.y = 100
+        """Test camera doesn't move down when frog falls (but still auto-scrolls)"""
+        # Disable auto-scroll for this test to isolate frog-following behavior
+        self.camera.enable_auto_scroll(False)
+        
+        # Move camera up first by positioning frog high
+        self.frog.y = 100  # High position to trigger camera movement
         self.camera.update(self.frog)
         camera_y_after_up = self.camera.y
         
-        # Move frog down
-        self.frog.y = 50
+        # Move frog down (larger Y value)
+        self.frog.y = 500
         self.camera.update(self.frog)
         
-        # Camera should not move down
+        # Camera should not move down (should stay at same position)
         self.assertEqual(self.camera.y, camera_y_after_up)
     
-    def test_camera_respects_minimum_position(self):
-        """Test camera doesn't go below minimum position"""
-        # Try to move camera below minimum
-        self.camera.y = -10
-        self.frog.y = 0
+    def test_camera_respects_maximum_position(self):
+        """Test camera doesn't go below starting position"""
+        # Try to move camera below starting position
+        self.camera.y = 10  # Below starting position
+        self.frog.y = 600   # Frog at bottom
         self.camera.update(self.frog)
         
-        # Camera should be at minimum position
-        self.assertGreaterEqual(self.camera.y, self.camera.min_y)
+        # Camera should be at maximum position (starting position)
+        self.assertLessEqual(self.camera.y, self.camera.max_y)
     
     def test_visibility_check(self):
         """Test camera visibility checking"""
@@ -147,6 +151,78 @@ class TestCameraSystem(unittest.TestCase):
         # Y coordinate should be converted to screen space
         expected_screen_y = self.camera.world_to_screen_y(300)
         self.assertEqual(screen_rect.y, expected_screen_y)
+    
+    def test_automatic_scrolling(self):
+        """Test automatic upward scrolling functionality when enabled"""
+        # Enable auto-scroll for this test
+        self.camera.enable_auto_scroll(True)
+        
+        initial_y = self.camera.y
+        
+        # Update camera without frog (just automatic scrolling)
+        self.camera.update(None)
+        
+        # Camera should have moved up by scroll_speed (y decreases)
+        expected_y = initial_y - self.camera.scroll_speed
+        self.assertEqual(self.camera.y, expected_y)
+    
+    def test_scroll_speed_control(self):
+        """Test setting scroll speed"""
+        new_speed = 2.5
+        self.camera.set_scroll_speed(new_speed)
+        self.assertEqual(self.camera.scroll_speed, new_speed)
+        
+        # Enable auto-scroll and test scrolling with new speed
+        self.camera.enable_auto_scroll(True)
+        initial_y = self.camera.y
+        self.camera.update(None)
+        expected_y = initial_y - new_speed  # Y decreases when scrolling up
+        self.assertEqual(self.camera.y, expected_y)
+    
+    def test_auto_scroll_enable_disable(self):
+        """Test enabling and disabling automatic scrolling"""
+        initial_y = self.camera.y
+        
+        # Auto scroll should be disabled by default now
+        self.assertFalse(self.camera.auto_scroll_enabled)
+        
+        # Update should not move camera when disabled
+        self.camera.update(None)
+        self.assertEqual(self.camera.y, initial_y)
+        
+        # Enable auto scroll
+        self.camera.enable_auto_scroll(True)
+        self.assertTrue(self.camera.auto_scroll_enabled)
+        
+        # Update should move camera up (y decreases)
+        self.camera.update(None)
+        self.assertLess(self.camera.y, initial_y)
+        
+        # Disable again
+        self.camera.enable_auto_scroll(False)
+        self.assertFalse(self.camera.auto_scroll_enabled)
+    
+    def test_scroll_distance_tracking(self):
+        """Test tracking total scroll distance"""
+        initial_distance = self.camera.get_scroll_distance()
+        self.assertEqual(initial_distance, 0.0)  # Should start at 0
+        
+        # Scroll camera up (decrease Y)
+        self.camera.y = -100
+        distance = self.camera.get_scroll_distance()
+        self.assertEqual(distance, 100.0)  # Positive distance = scrolled up
+    
+    def test_auto_scroll_with_frog_following(self):
+        """Test automatic scrolling combined with frog following"""
+        # Position frog high to trigger following
+        self.frog.y = 100  # High position (small Y)
+        initial_camera_y = self.camera.y
+        
+        # Update camera (should follow frog)
+        self.camera.update(self.frog)
+        
+        # Camera should have moved up (camera.y should decrease)
+        self.assertLess(self.camera.y, initial_camera_y)
 
 
 if __name__ == '__main__':

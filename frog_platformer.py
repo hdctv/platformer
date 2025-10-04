@@ -230,33 +230,46 @@ class Camera:
     """
     def __init__(self):
         """
-        Initialize the camera at the bottom of the screen
+        Initialize the camera at the starting position
         """
-        # Camera position in world coordinates (y increases upward)
-        self.y = 0.0
+        # Camera position - represents the Y coordinate of the top of the camera view
+        # In Pygame coordinates: Y=0 is top of screen, Y increases downward
+        self.y = 0.0  # Start with camera at the very top
         
         # Camera bounds and settings
         self.follow_offset = HEIGHT * 0.3  # Keep frog in lower 30% of screen
-        self.min_y = 0.0  # Minimum camera position
+        self.max_y = 0.0  # Maximum camera Y position (never go below starting position)
+        
+        # Automatic scrolling settings (disabled by default - camera follows frog instead)
+        self.scroll_speed = GAME_CONFIG['scroll_speed']  # Units per frame to scroll upward
+        self.auto_scroll_enabled = False  # Enable/disable automatic scrolling
     
     def update(self, frog):
         """
-        Update camera position to follow the frog
+        Update camera position to follow the frog (upward only, never down)
         
         Args:
             frog (Frog): The frog object to follow
         """
+        # Apply automatic upward scrolling if enabled
+        # Upward scrolling means camera.y decreases (moving toward negative values)
+        if self.auto_scroll_enabled:
+            self.y -= self.scroll_speed
+        
         if frog:
             # Calculate target camera position to keep frog in lower portion of screen
+            # We want the frog to be at about 70% down the screen (HEIGHT - follow_offset)
             target_y = frog.y - (HEIGHT - self.follow_offset)
             
-            # Only move camera upward (never downward)
-            if target_y > self.y:
+            # Only move camera upward (never downward) - this creates the "scrolling" effect
+            # When frog jumps UP (frog.y decreases), camera should move UP (camera.y decreases)
+            # When frog falls DOWN, camera stays where it is (never moves down)
+            if target_y < self.y:  # Frog is getting too high, move camera up
                 self.y = target_y
             
-            # Ensure camera doesn't go below minimum position
-            if self.y < self.min_y:
-                self.y = self.min_y
+            # Ensure camera doesn't go below starting position (never scroll down)
+            if self.y > self.max_y:
+                self.y = self.max_y
     
     def world_to_screen_y(self, world_y):
         """
@@ -306,6 +319,33 @@ class Camera:
         top_world_y = self.screen_to_world_y(0)
         bottom_world_y = self.screen_to_world_y(HEIGHT)
         return (top_world_y, bottom_world_y)
+    
+    def set_scroll_speed(self, speed):
+        """
+        Set the automatic scroll speed
+        
+        Args:
+            speed (float): New scroll speed in units per frame
+        """
+        self.scroll_speed = speed
+    
+    def enable_auto_scroll(self, enabled=True):
+        """
+        Enable or disable automatic scrolling
+        
+        Args:
+            enabled (bool): True to enable, False to disable
+        """
+        self.auto_scroll_enabled = enabled
+    
+    def get_scroll_distance(self):
+        """
+        Get the total distance the camera has scrolled upward
+        
+        Returns:
+            float: Total scroll distance from starting position (positive = scrolled up)
+        """
+        return self.max_y - self.y  # Positive when camera has moved up (y decreased)
 
 # Global game state
 game_state = GameState.PLAYING
@@ -314,6 +354,61 @@ game_state = GameState.PLAYING
 frog = None
 platforms = []
 camera = None
+
+def generate_reachable_platforms(start_x, start_y, count=20):
+    """
+    Generate a series of platforms that are always reachable from each other
+    
+    Args:
+        start_x (float): Starting X position
+        start_y (float): Starting Y position  
+        count (int): Number of platforms to generate
+        
+    Returns:
+        list: List of Platform objects
+    """
+    import random
+    
+    platforms = []
+    current_x = start_x
+    current_y = start_y
+    
+    # Calculate safe jump parameters based on frog physics
+    max_jump_height = 120  # Slightly less than theoretical max (144) for safety
+    max_horizontal_reach = 120  # Safe horizontal distance
+    min_vertical_gap = 60   # Minimum vertical spacing
+    max_vertical_gap = max_jump_height - 20  # Leave some margin
+    
+    platform_width = 100
+    
+    for i in range(count):
+        # For the first platform (ground), use the starting position
+        if i == 0:
+            platforms.append(Platform(current_x, current_y, 200, 20))  # Wider ground platform
+            continue
+        
+        # Calculate next platform position within reachable range
+        # Vertical spacing: always upward, within jump range
+        vertical_gap = random.randint(min_vertical_gap, max_vertical_gap)
+        next_y = current_y - vertical_gap  # Negative because Y decreases going up
+        
+        # Horizontal spacing: within horizontal reach, but varied
+        max_horizontal_offset = min(max_horizontal_reach, 100)  # Cap for better gameplay
+        horizontal_offset = random.randint(-max_horizontal_offset, max_horizontal_offset)
+        next_x = current_x + horizontal_offset
+        
+        # Keep platforms within screen bounds with some margin
+        platform_margin = platform_width // 2 + 20
+        next_x = max(platform_margin, min(WIDTH - platform_margin, next_x))
+        
+        # Create the platform
+        platforms.append(Platform(next_x, next_y, platform_width, 20))
+        
+        # Update current position for next iteration
+        current_x = next_x
+        current_y = next_y
+    
+    return platforms
 
 def init_game():
     """
@@ -326,27 +421,8 @@ def init_game():
     # Start the frog in the center-bottom of the screen
     frog = Frog(WIDTH // 2, HEIGHT - 100)
     
-    # Create initial static platforms for testing
-    platforms = []
-    
-    # Ground platform at the bottom
-    platforms.append(Platform(WIDTH // 2, HEIGHT - 50, 200, 20))
-    
-    # Create a series of platforms going upward for testing
-    # Platform 1: Left side, medium height
-    platforms.append(Platform(200, HEIGHT - 150, 120, 20))
-    
-    # Platform 2: Right side, higher
-    platforms.append(Platform(600, HEIGHT - 250, 120, 20))
-    
-    # Platform 3: Center, even higher
-    platforms.append(Platform(400, HEIGHT - 350, 120, 20))
-    
-    # Platform 4: Left side, highest
-    platforms.append(Platform(150, HEIGHT - 450, 120, 20))
-    
-    # Platform 5: Right side, very high
-    platforms.append(Platform(650, HEIGHT - 550, 120, 20))
+    # Generate reachable platforms starting from frog position
+    platforms = generate_reachable_platforms(WIDTH // 2, HEIGHT - 50, 25)
 
 def handle_input():
     """
@@ -444,14 +520,16 @@ def draw():
                         center=(WIDTH//2, HEIGHT - 30), 
                         fontsize=16, color="white")
         
-        # Debug info (enhanced with camera information)
+        # Debug info (enhanced with camera and platform information)
         if frog and camera:
             screen.draw.text(f"Frog World: ({int(frog.x)}, {int(frog.y)}) Screen: ({int(frog.x)}, {int(camera.world_to_screen_y(frog.y))})", 
                             topleft=(10, 10), fontsize=14, color="white")
             screen.draw.text(f"Velocity: ({frog.vx:.1f}, {frog.vy:.1f}) Ground: {frog.on_ground}", 
                             topleft=(10, 30), fontsize=14, color="white")
-            screen.draw.text(f"Camera Y: {camera.y:.1f}", 
+            screen.draw.text(f"Camera Y: {camera.y:.1f} | Scroll Distance: {camera.get_scroll_distance():.1f}", 
                             topleft=(10, 50), fontsize=14, color="white")
+            screen.draw.text(f"Platforms: {len(platforms)} | Camera Mode: {'AUTO-SCROLL' if camera.auto_scroll_enabled else 'FOLLOW-FROG'}", 
+                            topleft=(10, 70), fontsize=14, color="white")
     elif game_state == GameState.GAME_OVER:
         # Game over screen will be implemented later
         screen.draw.text("Game Over", center=(WIDTH//2, HEIGHT//2), 
