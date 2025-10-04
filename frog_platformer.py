@@ -72,12 +72,25 @@ class Platform:
     
     def get_rect(self):
         """
-        Get the collision rectangle for this platform
+        Get the collision rectangle for this platform in world coordinates
         
         Returns:
             Rect: Pygame rectangle for collision detection
         """
         return Rect(self.x - self.width//2, self.y, self.width, self.height)
+    
+    def get_screen_rect(self, camera):
+        """
+        Get the collision rectangle for this platform in screen coordinates
+        
+        Args:
+            camera (Camera): Camera object for coordinate conversion
+            
+        Returns:
+            Rect: Pygame rectangle for rendering
+        """
+        screen_y = camera.world_to_screen_y(self.y)
+        return Rect(self.x - self.width//2, screen_y, self.width, self.height)
     
     def check_collision(self, frog):
         """
@@ -210,18 +223,106 @@ class Frog:
                 platform.on_collision(self)
                 break  # Only land on one platform at a time
 
+# Camera Class for scroll management
+class Camera:
+    """
+    Camera system for managing vertical scrolling and coordinate conversion
+    """
+    def __init__(self):
+        """
+        Initialize the camera at the bottom of the screen
+        """
+        # Camera position in world coordinates (y increases upward)
+        self.y = 0.0
+        
+        # Camera bounds and settings
+        self.follow_offset = HEIGHT * 0.3  # Keep frog in lower 30% of screen
+        self.min_y = 0.0  # Minimum camera position
+    
+    def update(self, frog):
+        """
+        Update camera position to follow the frog
+        
+        Args:
+            frog (Frog): The frog object to follow
+        """
+        if frog:
+            # Calculate target camera position to keep frog in lower portion of screen
+            target_y = frog.y - (HEIGHT - self.follow_offset)
+            
+            # Only move camera upward (never downward)
+            if target_y > self.y:
+                self.y = target_y
+            
+            # Ensure camera doesn't go below minimum position
+            if self.y < self.min_y:
+                self.y = self.min_y
+    
+    def world_to_screen_y(self, world_y):
+        """
+        Convert world Y coordinate to screen Y coordinate
+        
+        Args:
+            world_y (float): Y coordinate in world space
+            
+        Returns:
+            float: Y coordinate in screen space
+        """
+        return world_y - self.y
+    
+    def screen_to_world_y(self, screen_y):
+        """
+        Convert screen Y coordinate to world Y coordinate
+        
+        Args:
+            screen_y (float): Y coordinate in screen space
+            
+        Returns:
+            float: Y coordinate in world space
+        """
+        return screen_y + self.y
+    
+    def is_visible(self, world_y, object_height=0):
+        """
+        Check if an object at the given world Y coordinate is visible on screen
+        
+        Args:
+            world_y (float): Y coordinate in world space
+            object_height (float): Height of the object (optional)
+            
+        Returns:
+            bool: True if object is visible, False otherwise
+        """
+        screen_y = self.world_to_screen_y(world_y)
+        return -object_height <= screen_y <= HEIGHT + object_height
+    
+    def get_visible_bounds(self):
+        """
+        Get the world coordinate bounds of what's currently visible
+        
+        Returns:
+            tuple: (top_world_y, bottom_world_y) of visible area
+        """
+        top_world_y = self.screen_to_world_y(0)
+        bottom_world_y = self.screen_to_world_y(HEIGHT)
+        return (top_world_y, bottom_world_y)
+
 # Global game state
 game_state = GameState.PLAYING
 
 # Global game objects
 frog = None
 platforms = []
+camera = None
 
 def init_game():
     """
     Initialize the game objects
     """
-    global frog, platforms
+    global frog, platforms, camera
+    # Initialize camera system
+    camera = Camera()
+    
     # Start the frog in the center-bottom of the screen
     frog = Frog(WIDTH // 2, HEIGHT - 100)
     
@@ -276,7 +377,7 @@ def update():
     Main game update loop - called every frame
     Handles game logic, physics, and state updates
     """
-    global game_state, frog
+    global game_state, frog, camera
     
     # Initialize game objects if not already done
     if frog is None:
@@ -291,6 +392,10 @@ def update():
             frog.update()
             # Check platform collisions after frog physics update
             frog.check_platform_collision(platforms)
+        
+        # Update camera to follow frog
+        if camera and frog:
+            camera.update(frog)
         
         # Update platforms
         for platform in platforms:
@@ -307,26 +412,29 @@ def draw():
     # Clear screen with sky blue background
     screen.fill((135, 206, 235))
     
-    if game_state == GameState.PLAYING:
-        # Draw platforms
+    if game_state == GameState.PLAYING and camera:
+        # Draw platforms using camera-relative coordinates
         for platform in platforms:
-            if platform.active:
+            if platform.active and camera.is_visible(platform.y, platform.height):
+                # Get screen coordinates for platform
+                screen_rect = platform.get_screen_rect(camera)
                 # Draw platform as brown rectangle
-                screen.draw.filled_rect(platform.get_rect(), 'brown')
+                screen.draw.filled_rect(screen_rect, 'brown')
                 # Draw platform border
-                screen.draw.rect(platform.get_rect(), 'black')
+                screen.draw.rect(screen_rect, 'black')
         
-        # Draw frog
+        # Draw frog using camera-relative coordinates
         if frog:
+            # Convert frog world coordinates to screen coordinates
+            frog_screen_y = camera.world_to_screen_y(frog.y)
+            frog_screen_rect = Rect(frog.x - frog.width//2, frog_screen_y - frog.height//2, 
+                                   frog.width, frog.height)
+            
             # For now, draw a simple green rectangle as the frog
             # This will be replaced with actual sprite rendering later
-            screen.draw.filled_rect(
-                Rect(frog.x - frog.width//2, frog.y - frog.height//2, 
-                     frog.width, frog.height), 
-                'green'
-            )
+            screen.draw.filled_rect(frog_screen_rect, 'green')
         
-        # Show game title and status
+        # Show game title and status (UI elements stay in screen coordinates)
         screen.draw.text("Frog Platformer", center=(WIDTH//2, 50), 
                         fontsize=36, color="white")
         screen.draw.text("Use SPACE/UP to jump, ARROW KEYS/WASD to move", 
@@ -336,10 +444,14 @@ def draw():
                         center=(WIDTH//2, HEIGHT - 30), 
                         fontsize=16, color="white")
         
-        # Debug info
-        if frog:
-            screen.draw.text(f"Frog: ({int(frog.x)}, {int(frog.y)}) vel: ({frog.vx:.1f}, {frog.vy:.1f}) ground: {frog.on_ground}", 
-                            topleft=(10, 10), fontsize=16, color="white")
+        # Debug info (enhanced with camera information)
+        if frog and camera:
+            screen.draw.text(f"Frog World: ({int(frog.x)}, {int(frog.y)}) Screen: ({int(frog.x)}, {int(camera.world_to_screen_y(frog.y))})", 
+                            topleft=(10, 10), fontsize=14, color="white")
+            screen.draw.text(f"Velocity: ({frog.vx:.1f}, {frog.vy:.1f}) Ground: {frog.on_ground}", 
+                            topleft=(10, 30), fontsize=14, color="white")
+            screen.draw.text(f"Camera Y: {camera.y:.1f}", 
+                            topleft=(10, 50), fontsize=14, color="white")
     elif game_state == GameState.GAME_OVER:
         # Game over screen will be implemented later
         screen.draw.text("Game Over", center=(WIDTH//2, HEIGHT//2), 
