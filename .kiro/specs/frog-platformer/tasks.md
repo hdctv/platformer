@@ -89,7 +89,7 @@
     - Create distinct visual appearance for slippery platforms
     - _Requirements: 4.2_
   
-  - [ ] 6.3 Implement breakable platform mechanics
+  - [x] 6.3 Implement breakable platform mechanics
     - Add timer-based platform destruction after being stepped on
     - Handle platform removal and frog physics when platform breaks
     - _Requirements: 4.3_
