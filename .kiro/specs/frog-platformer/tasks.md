@@ -6,24 +6,24 @@
   - Create placeholder update() and draw() functions
   - _Requirements: 6.1_
 
-- [ ] 2. Implement core frog character with basic physics
-  - [ ] 2.1 Create Frog class with position and velocity properties
+- [x] 2. Implement core frog character with basic physics
+  - [x] 2.1 Create Frog class with position and velocity properties
     - Define Frog class with x, y position and vx, vy velocity
     - Initialize frog sprite using Pygame Zero Actor
     - _Requirements: 1.1, 1.3_
   
-  - [ ] 2.2 Implement gravity and basic physics update
+  - [x] 2.2 Implement gravity and basic physics update
     - Add gravity constant and apply it to frog's vertical velocity
     - Update frog position based on velocity each frame
     - _Requirements: 1.3_
   
-  - [ ] 2.3 Add jump mechanics and input handling
+  - [x] 2.3 Add jump mechanics and input handling
     - Implement jump function that sets upward velocity
     - Add keyboard input detection for jump key
     - Prevent jumping when frog is not on ground
     - _Requirements: 1.1, 6.1_
   
-  - [ ] 2.4 Add horizontal movement controls
+  - [x] 2.4 Add horizontal movement controls
     - Implement left/right movement with keyboard input
     - Apply horizontal velocity and movement limits
     - _Requirements: 1.4, 6.1_
