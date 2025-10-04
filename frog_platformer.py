@@ -67,6 +67,9 @@ class Platform:
         self.platform_type = platform_type
         self.active = True  # For breakable platforms
         
+        # Type-specific properties
+        self.initialize_type_properties()
+        
         # Sprite will be added later when we have actual image assets
         self.sprite = None
     
@@ -128,18 +131,148 @@ class Platform:
         Args:
             frog (Frog): The frog that landed on the platform
         """
-        # Stop frog's downward movement and place on top of platform
+        # Use type-specific landing behavior
+        self.on_frog_land(frog)
+    
+    def initialize_type_properties(self):
+        """
+        Initialize properties specific to platform type
+        """
+        if self.platform_type == PlatformType.NORMAL:
+            self.friction = 1.0
+            self.color = 'brown'
+            
+        elif self.platform_type == PlatformType.SLIPPERY:
+            self.friction = 0.3  # Reduced friction
+            self.color = 'lightblue'
+            
+        elif self.platform_type == PlatformType.BREAKABLE:
+            self.friction = 1.0
+            self.color = 'orange'
+            self.break_timer = 0.0
+            self.break_delay = 1.0  # Seconds before breaking
+            self.stepped_on = False
+            
+        elif self.platform_type == PlatformType.MOVING:
+            self.friction = 1.0
+            self.color = 'purple'
+            self.move_speed = 1.0
+            self.move_direction = 1  # 1 for right, -1 for left
+            self.move_range = 100  # Pixels to move in each direction
+            self.original_x = self.x
+            
+        elif self.platform_type == PlatformType.HARMFUL:
+            self.friction = 1.0
+            self.color = 'red'
+            self.damage = True
+    
+    def get_friction_multiplier(self):
+        """
+        Get the friction multiplier for this platform type
+        
+        Returns:
+            float: Friction multiplier (1.0 = normal, <1.0 = slippery)
+        """
+        return getattr(self, 'friction', 1.0)
+    
+    def is_harmful(self):
+        """
+        Check if this platform is harmful to the frog
+        
+        Returns:
+            bool: True if platform causes damage/game over
+        """
+        return self.platform_type == PlatformType.HARMFUL
+    
+    def should_break(self):
+        """
+        Check if this breakable platform should break
+        
+        Returns:
+            bool: True if platform should break and become inactive
+        """
+        if self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
+            return self.break_timer >= self.break_delay
+        return False
+    
+    def on_frog_land(self, frog):
+        """
+        Handle frog landing on this platform (type-specific behavior)
+        
+        Args:
+            frog (Frog): The frog that landed on the platform
+        """
+        # Base collision behavior
         frog.y = self.y - frog.height//2
         frog.vy = 0
         frog.on_ground = True
+        
+        # Type-specific behavior
+        if self.platform_type == PlatformType.SLIPPERY:
+            # Apply reduced friction to horizontal movement
+            frog.vx *= self.friction
+            
+        elif self.platform_type == PlatformType.BREAKABLE:
+            # Start break timer
+            if not self.stepped_on:
+                self.stepped_on = True
+                self.break_timer = 0.0
+                
+        elif self.platform_type == PlatformType.MOVING:
+            # Frog moves with the platform
+            frog.x += self.move_speed * self.move_direction
+            
+        elif self.platform_type == PlatformType.HARMFUL:
+            # Trigger game over or damage
+            # This will be handled by the game state manager
+            pass
     
-    def update(self):
+    def update(self, dt=1/60):
         """
         Update platform behavior (for moving/breakable platforms)
+        
+        Args:
+            dt (float): Delta time in seconds
         """
-        # Base platform doesn't need updates
-        # This will be extended for special platform types
-        pass
+        if self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
+            # Update break timer
+            self.break_timer += dt
+            if self.should_break():
+                self.active = False
+                
+        elif self.platform_type == PlatformType.MOVING:
+            # Update moving platform position
+            self.x += self.move_speed * self.move_direction
+            
+            # Reverse direction if reached movement limits
+            if self.x >= self.original_x + self.move_range:
+                self.move_direction = -1
+            elif self.x <= self.original_x - self.move_range:
+                self.move_direction = 1
+                
+            # Keep within screen bounds
+            margin = self.width // 2 + 10
+            if self.x < margin:
+                self.x = margin
+                self.move_direction = 1
+            elif self.x > WIDTH - margin:
+                self.x = WIDTH - margin
+                self.move_direction = -1
+    
+    def get_visual_color(self):
+        """
+        Get the color for rendering this platform
+        
+        Returns:
+            str: Color name for rendering
+        """
+        if self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
+            # Flash red when about to break
+            flash_intensity = self.break_timer / self.break_delay
+            if flash_intensity > 0.7:
+                return 'red' if int(self.break_timer * 10) % 2 else self.color
+        
+        return getattr(self, 'color', 'brown')
 
 # Frog Character Class
 class Frog:
@@ -274,6 +407,15 @@ class PlatformGenerator:
             'platforms_reused': 0,
             'max_active_platforms': 0
         }
+        
+        # Platform type generation settings
+        self.type_introduction_heights = {
+            100: [PlatformType.SLIPPERY],
+            200: [PlatformType.BREAKABLE],
+            300: [PlatformType.MOVING],
+            400: [PlatformType.HARMFUL]
+        }
+        self.special_platform_chance = 0.3  # 30% chance for special platforms
     
     def generate_platforms_above_camera(self, camera, target_height):
         """
@@ -341,8 +483,12 @@ class PlatformGenerator:
                         next_x = test_x
                         break
             
+            # Select platform type based on progress
+            height_progress = abs(next_y)  # Use absolute Y as progress measure
+            platform_type = self.select_platform_type(height_progress)
+            
             # Create or reuse platform
-            platform = self.create_platform(next_x, next_y)
+            platform = self.create_platform(next_x, next_y, platform_type)
             self.active_platforms.append(platform)
             
             # Ensure minimum density around this platform
@@ -354,27 +500,33 @@ class PlatformGenerator:
             # Update highest platform Y (smallest Y value = highest up)
             self.highest_platform_y = min(self.highest_platform_y, next_y)
     
-    def create_platform(self, x, y):
+    def create_platform(self, x, y, platform_type=None):
         """
         Create a new platform or reuse an inactive one
         
         Args:
             x (float): X position
             y (float): Y position
+            platform_type (PlatformType): Type of platform to create (optional)
             
         Returns:
             Platform: New or reused platform object
         """
+        if platform_type is None:
+            platform_type = PlatformType.NORMAL
+            
         if self.inactive_platforms:
             # Reuse inactive platform
             platform = self.inactive_platforms.pop()
             platform.x = x
             platform.y = y
+            platform.platform_type = platform_type
             platform.active = True
+            platform.initialize_type_properties()  # Reinitialize for new type
             self.stats['platforms_reused'] += 1
         else:
             # Create new platform
-            platform = Platform(x, y, self.platform_width, self.platform_height)
+            platform = Platform(x, y, self.platform_width, self.platform_height, platform_type)
             self.stats['platforms_created'] += 1
         
         return platform
@@ -736,6 +888,34 @@ class PlatformGenerator:
                     x, y = position
                     new_platform = self.create_platform(x, y)
                     self.active_platforms.append(new_platform)
+    
+    def select_platform_type(self, height_progress):
+        """
+        Select platform type based on game progress
+        
+        Args:
+            height_progress (float): Current height/progress in the game
+            
+        Returns:
+            PlatformType: Selected platform type
+        """
+        import random
+        
+        # Determine available platform types based on progress
+        available_types = [PlatformType.NORMAL]
+        
+        for height_threshold, new_types in self.type_introduction_heights.items():
+            if height_progress >= height_threshold:
+                available_types.extend(new_types)
+        
+        # Decide whether to use special platform
+        if len(available_types) > 1 and random.random() < self.special_platform_chance:
+            # Choose a special platform type (not normal)
+            special_types = [t for t in available_types if t != PlatformType.NORMAL]
+            return random.choice(special_types)
+        else:
+            # Use normal platform
+            return PlatformType.NORMAL
 
 # Camera Class for scroll management
 class Camera:
@@ -1041,7 +1221,7 @@ def update():
         
         # Update platforms
         for platform in platforms:
-            platform.update()
+            platform.update(1/60)  # Assume 60 FPS
     elif game_state == GameState.GAME_OVER:
         # Handle game over input
         if keyboard.space or keyboard.RETURN:
@@ -1064,8 +1244,9 @@ def draw():
             if platform.active and camera.is_visible(platform.y, platform.height):
                 # Get screen coordinates for platform
                 screen_rect = platform.get_screen_rect(camera)
-                # Draw platform as brown rectangle
-                screen.draw.filled_rect(screen_rect, 'brown')
+                # Draw platform with type-specific color
+                platform_color = platform.get_visual_color()
+                screen.draw.filled_rect(screen_rect, platform_color)
                 # Draw platform border
                 screen.draw.rect(screen_rect, 'black')
         
