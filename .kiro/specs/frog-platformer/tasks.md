@@ -28,14 +28,14 @@
     - Apply horizontal velocity and movement limits
     - _Requirements: 1.4, 6.1_
 
-- [ ] 3. Create basic platform system
-  - [ ] 3.1 Implement Platform class with collision detection
+- [x] 3. Create basic platform system
+  - [x] 3.1 Implement Platform class with collision detection
     - Create Platform class with position, size, and sprite
     - Implement AABB collision detection between frog and platforms
     - Handle frog landing on platforms (stop falling, set on_ground)
     - _Requirements: 1.2_
   
-  - [ ] 3.2 Create initial static platform layout
+  - [x] 3.2 Create initial static platform layout
     - Generate a few static platforms for testing
     - Position platforms to allow basic jumping gameplay
     - _Requirements: 3.1, 3.4_
