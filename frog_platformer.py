@@ -246,6 +246,15 @@ class PlatformGenerator:
         self.platform_width = 100
         self.platform_height = 20
         
+        # Physics-based reachability parameters
+        self.frog_jump_height = 144  # Maximum jump height (from physics)
+        self.frog_horizontal_reach = 144  # Maximum horizontal reach
+        self.safety_margin = 0.8  # Use 80% of max reach for safety
+        
+        # Platform density requirements
+        self.min_platforms_in_range = 2  # Minimum platforms within jumping range
+        self.density_check_radius = 200  # Check density within this radius
+        
         # Track generation state
         self.highest_platform_y = 0  # Y coordinate of highest generated platform
         self.generation_buffer = 800  # Generate platforms this far above camera
@@ -291,22 +300,53 @@ class PlatformGenerator:
         
         # Generate platforms until we reach target height
         while current_y > target_height:
-            # Calculate next platform position
+            # Calculate next platform position with validation
             vertical_gap = random.randint(self.min_vertical_gap, self.max_vertical_gap)
             next_y = current_y - vertical_gap
             
-            # Calculate horizontal position within reach
-            max_offset = min(self.max_horizontal_reach, 100)
-            horizontal_offset = random.randint(-max_offset, max_offset)
-            next_x = current_x + horizontal_offset
+            # Find last platform to ensure reachability
+            last_platform = None
+            if self.active_platforms:
+                for platform in self.active_platforms:
+                    if platform.y == current_y or abs(platform.y - current_y) < 10:
+                        last_platform = platform
+                        break
+            
+            if last_platform:
+                # Use validation to find reachable position
+                position = self.find_reachable_position(last_platform, next_y)
+                if position:
+                    next_x, next_y = position
+                else:
+                    # Fallback: use safer parameters
+                    next_y = current_y - self.min_vertical_gap
+                    next_x = current_x + random.randint(-60, 60)  # Conservative range
+            else:
+                # Fallback to original method if no reference platform
+                max_offset = min(self.max_horizontal_reach, 100)
+                horizontal_offset = random.randint(-max_offset, max_offset)
+                next_x = current_x + horizontal_offset
             
             # Keep platform within screen bounds
             margin = self.platform_width // 2 + 20
             next_x = max(margin, min(WIDTH - margin, next_x))
             
+            # Ensure position doesn't overlap existing platforms
+            if self.position_overlaps_existing(next_x, next_y):
+                # Adjust position slightly
+                for offset in [40, -40, 80, -80]:
+                    test_x = next_x + offset
+                    if (not self.position_overlaps_existing(test_x, next_y) and 
+                        margin <= test_x <= WIDTH - margin):
+                        next_x = test_x
+                        break
+            
             # Create or reuse platform
             platform = self.create_platform(next_x, next_y)
             self.active_platforms.append(platform)
+            
+            # Ensure minimum density around this platform
+            self.ensure_minimum_density(next_x, next_y)
             
             # Update tracking
             current_x = next_x
@@ -352,6 +392,13 @@ class PlatformGenerator:
         # Only generate if we need more platforms above
         if self.highest_platform_y > target_height:
             self.generate_platforms_above_camera(camera, target_height)
+            
+            # Periodically validate and fix layout issues
+            if len(self.active_platforms) % 10 == 0:  # Check every 10 platforms
+                issues = self.validate_platform_layout()
+                if (issues['unreachable_platforms'] or 
+                    len(issues['low_density_areas']) > 2):  # Fix if significant issues
+                    self.fix_layout_issues(issues)
     
     def get_active_platforms(self):
         """
@@ -446,6 +493,249 @@ class PlatformGenerator:
             self.cleanup_margin = cleanup_margin
         if max_inactive is not None:
             self.max_inactive_platforms = max_inactive
+    
+    def is_platform_reachable(self, from_platform, to_x, to_y):
+        """
+        Check if a platform position is reachable from another platform
+        
+        Args:
+            from_platform (Platform): Starting platform
+            to_x (float): Target X position
+            to_y (float): Target Y position
+            
+        Returns:
+            bool: True if target position is reachable
+        """
+        # Calculate distances
+        horizontal_distance = abs(to_x - from_platform.x)
+        vertical_distance = from_platform.y - to_y  # Positive = jumping up
+        
+        # Apply safety margins
+        max_safe_horizontal = self.frog_horizontal_reach * self.safety_margin
+        max_safe_vertical = self.frog_jump_height * self.safety_margin
+        
+        # Check if within safe jumping range
+        horizontal_ok = horizontal_distance <= max_safe_horizontal
+        
+        # For vertical: can jump up (positive vertical_distance) or fall down (negative)
+        if vertical_distance >= 0:  # Jumping up
+            vertical_ok = vertical_distance <= max_safe_vertical
+        else:  # Falling down - always reachable if horizontal distance is OK
+            vertical_ok = True
+        
+        return horizontal_ok and vertical_ok
+    
+    def find_reachable_position(self, from_platform, target_y, attempts=10):
+        """
+        Find a reachable position for a new platform
+        
+        Args:
+            from_platform (Platform): Platform to jump from
+            target_y (float): Desired Y coordinate
+            attempts (int): Maximum attempts to find valid position
+            
+        Returns:
+            tuple: (x, y) coordinates of valid position, or None if not found
+        """
+        import random
+        
+        # Ensure target_y is reachable
+        max_jump_up = from_platform.y - (self.frog_jump_height * self.safety_margin)
+        if target_y < max_jump_up:
+            target_y = max_jump_up
+        
+        for _ in range(attempts):
+            # Generate random horizontal offset within safe range
+            max_offset = self.frog_horizontal_reach * self.safety_margin * 0.7  # Even more conservative
+            horizontal_offset = random.randint(-int(max_offset), int(max_offset))
+            candidate_x = from_platform.x + horizontal_offset
+            
+            # Keep within screen bounds
+            margin = self.platform_width // 2 + 20
+            candidate_x = max(margin, min(WIDTH - margin, candidate_x))
+            
+            # Verify reachability
+            if self.is_platform_reachable(from_platform, candidate_x, target_y):
+                return (candidate_x, target_y)
+        
+        return None
+    
+    def check_platform_density(self, center_x, center_y):
+        """
+        Check if there are enough platforms within jumping range of a position
+        
+        Args:
+            center_x (float): X coordinate to check around
+            center_y (float): Y coordinate to check around
+            
+        Returns:
+            int: Number of platforms within jumping range
+        """
+        count = 0
+        check_radius = self.density_check_radius
+        
+        for platform in self.active_platforms:
+            distance_x = abs(platform.x - center_x)
+            distance_y = abs(platform.y - center_y)
+            
+            # Check if within density check radius
+            if distance_x <= check_radius and distance_y <= check_radius:
+                # Check if actually reachable (more precise)
+                if (distance_x <= self.frog_horizontal_reach * self.safety_margin and 
+                    distance_y <= self.frog_jump_height * self.safety_margin):
+                    count += 1
+        
+        return count
+    
+    def ensure_minimum_density(self, around_x, around_y):
+        """
+        Ensure minimum platform density around a position by adding platforms if needed
+        
+        Args:
+            around_x (float): X coordinate to ensure density around
+            around_y (float): Y coordinate to ensure density around
+        """
+        current_density = self.check_platform_density(around_x, around_y)
+        
+        if current_density < self.min_platforms_in_range:
+            needed = self.min_platforms_in_range - current_density
+            
+            # Add platforms to meet minimum density
+            for _ in range(needed):
+                # Find a good position for additional platform
+                position = self.find_safe_platform_position(around_x, around_y)
+                if position:
+                    x, y = position
+                    platform = self.create_platform(x, y)
+                    self.active_platforms.append(platform)
+    
+    def find_safe_platform_position(self, near_x, near_y):
+        """
+        Find a safe position for a platform near given coordinates
+        
+        Args:
+            near_x (float): X coordinate to place platform near
+            near_y (float): Y coordinate to place platform near
+            
+        Returns:
+            tuple: (x, y) coordinates of safe position, or None
+        """
+        import random
+        
+        for _ in range(20):  # Try multiple positions
+            # Generate position within reachable range
+            offset_x = random.randint(-80, 80)  # Conservative horizontal range
+            offset_y = random.randint(-80, 20)   # Mostly above, some below
+            
+            candidate_x = near_x + offset_x
+            candidate_y = near_y + offset_y
+            
+            # Keep within screen bounds
+            margin = self.platform_width // 2 + 20
+            candidate_x = max(margin, min(WIDTH - margin, candidate_x))
+            
+            # Check if position doesn't overlap with existing platforms
+            if not self.position_overlaps_existing(candidate_x, candidate_y):
+                return (candidate_x, candidate_y)
+        
+        return None
+    
+    def position_overlaps_existing(self, x, y, min_distance=80):
+        """
+        Check if a position is too close to existing platforms
+        
+        Args:
+            x (float): X coordinate to check
+            y (float): Y coordinate to check
+            min_distance (float): Minimum distance from existing platforms
+            
+        Returns:
+            bool: True if position overlaps/too close to existing platforms
+        """
+        for platform in self.active_platforms:
+            distance_x = abs(platform.x - x)
+            distance_y = abs(platform.y - y)
+            
+            if distance_x < min_distance and distance_y < min_distance:
+                return True
+        
+        return False
+    
+    def validate_platform_layout(self):
+        """
+        Validate that the current platform layout is fully reachable
+        
+        Returns:
+            dict: Validation results with issues found
+        """
+        issues = {
+            'unreachable_platforms': [],
+            'low_density_areas': [],
+            'isolated_platforms': []
+        }
+        
+        # Sort platforms by Y coordinate (bottom to top)
+        sorted_platforms = sorted(self.active_platforms, key=lambda p: p.y, reverse=True)
+        
+        # Check each platform's reachability from others
+        for i, platform in enumerate(sorted_platforms):
+            reachable_from = []
+            
+            # Check if reachable from platforms below it
+            for j, other_platform in enumerate(sorted_platforms):
+                if other_platform.y > platform.y:  # Other platform is below
+                    if self.is_platform_reachable(other_platform, platform.x, platform.y):
+                        reachable_from.append(other_platform)
+            
+            # If no platforms can reach this one, it's unreachable
+            if not reachable_from and i > 0:  # Skip ground platform
+                issues['unreachable_platforms'].append(platform)
+            
+            # Check density around this platform
+            density = self.check_platform_density(platform.x, platform.y)
+            if density < self.min_platforms_in_range:
+                issues['low_density_areas'].append((platform, density))
+        
+        return issues
+    
+    def fix_layout_issues(self, issues):
+        """
+        Attempt to fix layout issues by adding platforms
+        
+        Args:
+            issues (dict): Issues found by validate_platform_layout
+        """
+        # Fix unreachable platforms by adding intermediate platforms
+        for platform in issues['unreachable_platforms']:
+            # Find nearest lower platform
+            nearest_lower = None
+            min_distance = float('inf')
+            
+            for other in self.active_platforms:
+                if other.y > platform.y:  # Other is below
+                    distance = ((other.x - platform.x) ** 2 + (other.y - platform.y) ** 2) ** 0.5
+                    if distance < min_distance:
+                        min_distance = distance
+                        nearest_lower = other
+            
+            if nearest_lower:
+                # Add intermediate platform
+                mid_x = (nearest_lower.x + platform.x) / 2
+                mid_y = (nearest_lower.y + platform.y) / 2
+                
+                if not self.position_overlaps_existing(mid_x, mid_y):
+                    intermediate = self.create_platform(mid_x, mid_y)
+                    self.active_platforms.append(intermediate)
+        
+        # Fix low density areas
+        for platform, density in issues['low_density_areas']:
+            needed = self.min_platforms_in_range - density
+            for _ in range(needed):
+                position = self.find_safe_platform_position(platform.x, platform.y)
+                if position:
+                    x, y = position
+                    new_platform = self.create_platform(x, y)
+                    self.active_platforms.append(new_platform)
 
 # Camera Class for scroll management
 class Camera:
