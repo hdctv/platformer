@@ -145,6 +145,8 @@ class Platform:
         elif self.platform_type == PlatformType.SLIPPERY:
             self.friction = 0.3  # Reduced friction
             self.color = 'lightblue'
+            self.ice_shine_timer = 0.0  # For visual shine effect
+            self.continuous_slip = True  # Apply friction continuously while on platform
             
         elif self.platform_type == PlatformType.BREAKABLE:
             self.friction = 1.0
@@ -211,6 +213,9 @@ class Platform:
         if self.platform_type == PlatformType.SLIPPERY:
             # Apply reduced friction to horizontal movement
             frog.vx *= self.friction
+            # Mark frog as being on slippery surface
+            frog.on_slippery_surface = True
+            frog.slippery_platform = self
             
         elif self.platform_type == PlatformType.BREAKABLE:
             # Start break timer
@@ -234,7 +239,11 @@ class Platform:
         Args:
             dt (float): Delta time in seconds
         """
-        if self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
+        if self.platform_type == PlatformType.SLIPPERY:
+            # Update shine animation timer
+            self.ice_shine_timer += dt * 2  # Shine animation speed
+            
+        elif self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
             # Update break timer
             self.break_timer += dt
             if self.should_break():
@@ -266,7 +275,18 @@ class Platform:
         Returns:
             str: Color name for rendering
         """
-        if self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
+        if self.platform_type == PlatformType.SLIPPERY:
+            # Create shine effect for slippery platforms
+            import math
+            shine_intensity = (math.sin(self.ice_shine_timer) + 1) / 2  # 0 to 1
+            if shine_intensity > 0.8:
+                return 'white'  # Bright shine
+            elif shine_intensity > 0.6:
+                return 'lightcyan'  # Medium shine
+            else:
+                return self.color  # Base color
+                
+        elif self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
             # Flash red when about to break
             flash_intensity = self.break_timer / self.break_delay
             if flash_intensity > 0.7:
@@ -297,6 +317,8 @@ class Frog:
         
         # State tracking
         self.on_ground = False
+        self.on_slippery_surface = False
+        self.slippery_platform = None
         
         # Load frog sprite
         import pygame
@@ -330,8 +352,17 @@ class Frog:
         elif self.x > WIDTH - self.width // 2:
             self.x = WIDTH - self.width // 2
         
-        # Reset on_ground state - will be set by platform collision if applicable
+        # Handle continuous slippery effects
+        if self.on_slippery_surface and self.slippery_platform:
+            # Apply continuous friction reduction while on slippery platform
+            friction_factor = self.slippery_platform.get_friction_multiplier()
+            # Gradually reduce horizontal velocity (but not too aggressively)
+            self.vx *= (0.95 + friction_factor * 0.05)  # Smooth friction application
+        
+        # Reset surface state - will be set by platform collision if applicable
         self.on_ground = False
+        self.on_slippery_surface = False
+        self.slippery_platform = None
     
     def jump(self):
         """
@@ -349,7 +380,18 @@ class Frog:
         Args:
             direction (int): -1 for left, 1 for right, 0 for no movement
         """
-        self.vx = direction * GAME_CONFIG['horizontal_speed']
+        base_speed = GAME_CONFIG['horizontal_speed']
+        
+        # Reduce control on slippery surfaces
+        if self.on_slippery_surface and self.slippery_platform:
+            # Less responsive controls on slippery platforms
+            control_factor = 0.6  # 60% control
+            target_vx = direction * base_speed * control_factor
+            # Gradual acceleration instead of instant
+            self.vx += (target_vx - self.vx) * 0.3
+        else:
+            # Normal movement
+            self.vx = direction * base_speed
     
     def check_platform_collision(self, platforms):
         """

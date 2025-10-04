@@ -40,46 +40,46 @@
     - Position platforms to allow basic jumping gameplay
     - _Requirements: 3.1, 3.4_
   
-  - [ ]* 3.3 Write unit tests for collision detection
+  - [x] 3.3 Write unit tests for collision detection
     - Test frog-platform collision detection accuracy
     - Test edge cases like landing on platform edges
     - _Requirements: 1.2_
 
 - [ ] 4. Implement camera system and upward scrolling
-  - [ ] 4.1 Create camera/scroll management system
+  - [x] 4.1 Create camera/scroll management system
     - Add camera_y variable to track vertical scroll position
     - Implement coordinate conversion from world to screen space
     - _Requirements: 2.1_
   
-  - [ ] 4.2 Add automatic upward scrolling
+  - [x] 4.2 Add automatic upward scrolling
     - Implement constant upward camera movement
     - Update all rendering to use camera-relative coordinates
     - _Requirements: 2.1_
   
-  - [ ] 4.3 Implement game over detection when frog falls off screen
+  - [x] 4.3 Implement game over detection when frog falls off screen
     - Check if frog position is below camera view
     - Trigger game over state when frog falls too far
     - _Requirements: 2.2_
 
 - [ ] 5. Create dynamic platform generation system
-  - [ ] 5.1 Implement PlatformGenerator class
+  - [x] 5.1 Implement PlatformGenerator class
     - Create class to manage platform creation above camera
     - Add methods to generate platforms at specified heights
     - Ensure proper spacing between platforms
     - _Requirements: 3.1, 3.3_
   
-  - [ ] 5.2 Add platform cleanup system
+  - [x] 5.2 Add platform cleanup system
     - Remove platforms that scroll below visible area
     - Implement memory management for off-screen objects
     - _Requirements: 2.3_
   
-  - [ ] 5.3 Ensure generated platforms are always reachable
+  - [x] 5.3 Ensure generated platforms are always reachable
     - Add validation to prevent impossible jumps
     - Implement minimum platform density requirements
     - _Requirements: 3.4_
 
 - [ ] 6. Implement different platform types and behaviors
-  - [ ] 6.1 Create PlatformType enum and base platform behavior
+  - [x] 6.1 Create PlatformType enum and base platform behavior
     - Define platform type enumeration
     - Modify Platform class to support different types
     - _Requirements: 4.1_
