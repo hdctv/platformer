@@ -223,6 +223,147 @@ class Frog:
                 platform.on_collision(self)
                 break  # Only land on one platform at a time
 
+# Platform Generator Class
+class PlatformGenerator:
+    """
+    Manages dynamic platform generation above the camera view
+    """
+    def __init__(self):
+        """
+        Initialize the platform generator
+        """
+        # Generation parameters
+        self.min_vertical_gap = 60
+        self.max_vertical_gap = 100
+        self.max_horizontal_reach = 120
+        self.platform_width = 100
+        self.platform_height = 20
+        
+        # Track generation state
+        self.highest_platform_y = 0  # Y coordinate of highest generated platform
+        self.generation_buffer = 800  # Generate platforms this far above camera
+        
+        # Platform pool for reuse
+        self.active_platforms = []
+        self.inactive_platforms = []
+    
+    def generate_platforms_above_camera(self, camera, target_height):
+        """
+        Generate platforms above the camera up to target height
+        
+        Args:
+            camera (Camera): Camera object to determine generation area
+            target_height (float): Generate platforms up to this Y coordinate
+        """
+        import random
+        
+        # Start generating from the highest existing platform (smallest Y value)
+        if self.active_platforms:
+            # Find the platform with the smallest Y value (highest up)
+            highest_platform = min(self.active_platforms, key=lambda p: p.y)
+            start_y = highest_platform.y
+            current_x = highest_platform.x
+        else:
+            # If no platforms exist, start from camera view
+            start_y = camera.y + HEIGHT - 200  # Start near bottom of screen
+            current_x = WIDTH // 2
+        
+        current_y = start_y
+        
+        # Generate platforms until we reach target height
+        while current_y > target_height:
+            # Calculate next platform position
+            vertical_gap = random.randint(self.min_vertical_gap, self.max_vertical_gap)
+            next_y = current_y - vertical_gap
+            
+            # Calculate horizontal position within reach
+            max_offset = min(self.max_horizontal_reach, 100)
+            horizontal_offset = random.randint(-max_offset, max_offset)
+            next_x = current_x + horizontal_offset
+            
+            # Keep platform within screen bounds
+            margin = self.platform_width // 2 + 20
+            next_x = max(margin, min(WIDTH - margin, next_x))
+            
+            # Create or reuse platform
+            platform = self.create_platform(next_x, next_y)
+            self.active_platforms.append(platform)
+            
+            # Update tracking
+            current_x = next_x
+            current_y = next_y
+            # Update highest platform Y (smallest Y value = highest up)
+            self.highest_platform_y = min(self.highest_platform_y, next_y)
+    
+    def create_platform(self, x, y):
+        """
+        Create a new platform or reuse an inactive one
+        
+        Args:
+            x (float): X position
+            y (float): Y position
+            
+        Returns:
+            Platform: New or reused platform object
+        """
+        if self.inactive_platforms:
+            # Reuse inactive platform
+            platform = self.inactive_platforms.pop()
+            platform.x = x
+            platform.y = y
+            platform.active = True
+        else:
+            # Create new platform
+            platform = Platform(x, y, self.platform_width, self.platform_height)
+        
+        return platform
+    
+    def update(self, camera):
+        """
+        Update platform generation based on camera position
+        
+        Args:
+            camera (Camera): Camera object to track position
+        """
+        # Generate platforms ahead of camera
+        target_height = camera.y - self.generation_buffer
+        
+        # Only generate if we need more platforms above
+        if self.highest_platform_y > target_height:
+            self.generate_platforms_above_camera(camera, target_height)
+    
+    def get_active_platforms(self):
+        """
+        Get list of currently active platforms
+        
+        Returns:
+            list: List of active Platform objects
+        """
+        return self.active_platforms
+    
+    def cleanup_platforms_below_camera(self, camera, cleanup_margin=200):
+        """
+        Remove platforms that are far below the camera view
+        
+        Args:
+            camera (Camera): Camera object to determine cleanup area
+            cleanup_margin (float): Extra margin below screen before cleanup
+        """
+        screen_bottom = camera.screen_to_world_y(HEIGHT)
+        cleanup_threshold = screen_bottom + cleanup_margin
+        
+        # Move platforms below threshold to inactive list
+        platforms_to_remove = []
+        for platform in self.active_platforms:
+            if platform.y > cleanup_threshold:
+                platform.active = False
+                self.inactive_platforms.append(platform)
+                platforms_to_remove.append(platform)
+        
+        # Remove from active list
+        for platform in platforms_to_remove:
+            self.active_platforms.remove(platform)
+
 # Camera Class for scroll management
 class Camera:
     """
@@ -375,6 +516,7 @@ game_state = GameState.PLAYING
 frog = None
 platforms = []
 camera = None
+platform_generator = None
 
 def generate_reachable_platforms(start_x, start_y, count=20):
     """
@@ -435,15 +577,26 @@ def init_game():
     """
     Initialize the game objects
     """
-    global frog, platforms, camera
+    global frog, platforms, camera, platform_generator
     # Initialize camera system
     camera = Camera()
+    
+    # Initialize platform generator
+    platform_generator = PlatformGenerator()
     
     # Start the frog in the center-bottom of the screen
     frog = Frog(WIDTH // 2, HEIGHT - 100)
     
-    # Generate reachable platforms starting from frog position
-    platforms = generate_reachable_platforms(WIDTH // 2, HEIGHT - 50, 25)
+    # Create initial ground platform
+    ground_platform = Platform(WIDTH // 2, HEIGHT - 50, 200, 20)
+    platform_generator.active_platforms.append(ground_platform)
+    platform_generator.highest_platform_y = HEIGHT - 50
+    
+    # Generate initial set of platforms
+    platform_generator.generate_platforms_above_camera(camera, camera.y - 1000)
+    
+    # Get platforms from generator
+    platforms = platform_generator.get_active_platforms()
 
 def restart_game():
     """
@@ -506,6 +659,13 @@ def update():
             if camera.is_frog_below_screen(frog):
                 game_state = GameState.GAME_OVER
         
+        # Update platform generator
+        if platform_generator and camera:
+            platform_generator.update(camera)
+            platform_generator.cleanup_platforms_below_camera(camera)
+            # Update platforms list from generator
+            platforms[:] = platform_generator.get_active_platforms()
+        
         # Update platforms
         for platform in platforms:
             platform.update()
@@ -527,8 +687,10 @@ def draw():
     
     if game_state == GameState.PLAYING and camera:
         # Draw platforms using camera-relative coordinates
+        visible_count = 0
         for platform in platforms:
             if platform.active and camera.is_visible(platform.y, platform.height):
+                visible_count += 1
                 # Get screen coordinates for platform
                 screen_rect = platform.get_screen_rect(camera)
                 # Draw platform as brown rectangle
@@ -565,7 +727,13 @@ def draw():
                             topleft=(10, 30), fontsize=14, color="white")
             screen.draw.text(f"Camera Y: {camera.y:.1f} | Scroll Distance: {camera.get_scroll_distance():.1f}", 
                             topleft=(10, 50), fontsize=14, color="white")
-            screen.draw.text(f"Platforms: {len(platforms)} | Camera Mode: {'AUTO-SCROLL' if camera.auto_scroll_enabled else 'FOLLOW-FROG'}", 
+            # Show platform Y coordinates for debugging
+            if len(platforms) > 0:
+                platform_ys = [f"{p.y:.0f}" for p in platforms[:5]]  # Show first 5 platform Y coords
+                screen.draw.text(f"Platform Ys: {', '.join(platform_ys)}...", 
+                                topleft=(10, 90), fontsize=12, color="yellow")
+            
+            screen.draw.text(f"Platforms: {len(platforms)} (Visible: {visible_count}) | Camera Mode: {'AUTO-SCROLL' if camera.auto_scroll_enabled else 'FOLLOW-FROG'}", 
                             topleft=(10, 70), fontsize=14, color="white")
     elif game_state == GameState.GAME_OVER:
         # Game over screen
