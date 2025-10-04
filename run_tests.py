@@ -106,6 +106,31 @@ def run_platform_generator_tests():
         print(f"Error running tests: {e}")
         return False
 
+def run_platform_cleanup_tests():
+    """Run the platform cleanup system unit tests"""
+    print("Running platform cleanup tests...")
+    print("=" * 50)
+    
+    try:
+        result = subprocess.run([sys.executable, "test_platform_cleanup.py"], 
+                              capture_output=True, text=True)
+        
+        print(result.stdout)
+        if result.stderr:
+            print("Warnings/Errors:")
+            print(result.stderr)
+        
+        if result.returncode == 0:
+            print("\n✅ All platform cleanup tests passed!")
+        else:
+            print(f"\n❌ Tests failed with exit code {result.returncode}")
+            
+        return result.returncode == 0
+        
+    except Exception as e:
+        print(f"Error running tests: {e}")
+        return False
+
 if __name__ == "__main__":
     print("🐸 Frog Platformer Test Suite")
     print("=" * 60)
@@ -117,9 +142,11 @@ if __name__ == "__main__":
     game_over_success = run_game_over_tests()
     print()
     platform_gen_success = run_platform_generator_tests()
+    print()
+    platform_cleanup_success = run_platform_cleanup_tests()
     
     print("\n" + "=" * 60)
-    if collision_success and camera_success and game_over_success and platform_gen_success:
+    if collision_success and camera_success and game_over_success and platform_gen_success and platform_cleanup_success:
         print("🎉 All tests passed successfully!")
         sys.exit(0)
     else:

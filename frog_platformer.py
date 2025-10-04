@@ -253,6 +253,18 @@ class PlatformGenerator:
         # Platform pool for reuse
         self.active_platforms = []
         self.inactive_platforms = []
+        
+        # Memory management settings
+        self.max_inactive_platforms = 50  # Maximum platforms to keep in inactive pool
+        self.cleanup_margin = 200  # Margin below screen before cleanup
+        
+        # Statistics tracking
+        self.stats = {
+            'platforms_created': 0,
+            'platforms_cleaned': 0,
+            'platforms_reused': 0,
+            'max_active_platforms': 0
+        }
     
     def generate_platforms_above_camera(self, camera, target_height):
         """
@@ -319,9 +331,11 @@ class PlatformGenerator:
             platform.x = x
             platform.y = y
             platform.active = True
+            self.stats['platforms_reused'] += 1
         else:
             # Create new platform
             platform = Platform(x, y, self.platform_width, self.platform_height)
+            self.stats['platforms_created'] += 1
         
         return platform
     
@@ -348,14 +362,17 @@ class PlatformGenerator:
         """
         return self.active_platforms
     
-    def cleanup_platforms_below_camera(self, camera, cleanup_margin=200):
+    def cleanup_platforms_below_camera(self, camera, cleanup_margin=None):
         """
         Remove platforms that are far below the camera view
         
         Args:
             camera (Camera): Camera object to determine cleanup area
-            cleanup_margin (float): Extra margin below screen before cleanup
+            cleanup_margin (float): Extra margin below screen before cleanup (optional)
         """
+        if cleanup_margin is None:
+            cleanup_margin = self.cleanup_margin
+            
         screen_bottom = camera.screen_to_world_y(HEIGHT)
         cleanup_threshold = screen_bottom + cleanup_margin
         
@@ -364,12 +381,71 @@ class PlatformGenerator:
         for platform in self.active_platforms:
             if platform.y > cleanup_threshold:
                 platform.active = False
-                self.inactive_platforms.append(platform)
+                
+                # Only keep platform in inactive pool if we haven't exceeded max
+                if len(self.inactive_platforms) < self.max_inactive_platforms:
+                    self.inactive_platforms.append(platform)
+                # Otherwise, let it be garbage collected (true cleanup)
+                
                 platforms_to_remove.append(platform)
+                self.stats['platforms_cleaned'] += 1
         
         # Remove from active list
         for platform in platforms_to_remove:
             self.active_platforms.remove(platform)
+        
+        # Update max active platforms stat
+        self.stats['max_active_platforms'] = max(
+            self.stats['max_active_platforms'], 
+            len(self.active_platforms)
+        )
+    
+    def get_memory_stats(self):
+        """
+        Get memory usage and performance statistics
+        
+        Returns:
+            dict: Dictionary containing memory and performance stats
+        """
+        return {
+            'active_platforms': len(self.active_platforms),
+            'inactive_platforms': len(self.inactive_platforms),
+            'total_platforms': len(self.active_platforms) + len(self.inactive_platforms),
+            'platforms_created': self.stats['platforms_created'],
+            'platforms_cleaned': self.stats['platforms_cleaned'],
+            'platforms_reused': self.stats['platforms_reused'],
+            'max_active_platforms': self.stats['max_active_platforms'],
+            'reuse_efficiency': (
+                self.stats['platforms_reused'] / max(1, self.stats['platforms_created'] + self.stats['platforms_reused'])
+            ) * 100
+        }
+    
+    def force_cleanup(self, keep_count=10):
+        """
+        Force cleanup of inactive platforms to free memory
+        
+        Args:
+            keep_count (int): Number of inactive platforms to keep
+        """
+        if len(self.inactive_platforms) > keep_count:
+            # Remove excess inactive platforms
+            excess_count = len(self.inactive_platforms) - keep_count
+            for _ in range(excess_count):
+                self.inactive_platforms.pop()
+            self.stats['platforms_cleaned'] += excess_count
+    
+    def set_cleanup_settings(self, cleanup_margin=None, max_inactive=None):
+        """
+        Configure cleanup system settings
+        
+        Args:
+            cleanup_margin (float): Margin below screen before cleanup
+            max_inactive (int): Maximum inactive platforms to keep
+        """
+        if cleanup_margin is not None:
+            self.cleanup_margin = cleanup_margin
+        if max_inactive is not None:
+            self.max_inactive_platforms = max_inactive
 
 # Camera Class for scroll management
 class Camera:
@@ -734,6 +810,14 @@ def draw():
                             topleft=(10, 10), fontsize=16, color="white")
             screen.draw.text(f"Frog: ({int(frog.x)}, {int(frog.y)}) Ground: {frog.on_ground}", 
                             topleft=(10, 30), fontsize=14, color="white")
+            
+            # Memory stats (show if M key is pressed)
+            if platform_generator and keyboard.m:
+                stats = platform_generator.get_memory_stats()
+                screen.draw.text(f"Memory: Active={stats['active_platforms']} Inactive={stats['inactive_platforms']}", 
+                                topleft=(10, 50), fontsize=12, color="yellow")
+                screen.draw.text(f"Created={stats['platforms_created']} Reused={stats['platforms_reused']} Efficiency={stats['reuse_efficiency']:.1f}%", 
+                                topleft=(10, 65), fontsize=12, color="yellow")
     elif game_state == GameState.GAME_OVER:
         # Game over screen
         screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 
