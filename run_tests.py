@@ -56,6 +56,31 @@ def run_camera_tests():
         print(f"Error running tests: {e}")
         return False
 
+def run_game_over_tests():
+    """Run the game over system unit tests"""
+    print("Running game over system tests...")
+    print("=" * 50)
+    
+    try:
+        result = subprocess.run([sys.executable, "test_game_over.py"], 
+                              capture_output=True, text=True)
+        
+        print(result.stdout)
+        if result.stderr:
+            print("Warnings/Errors:")
+            print(result.stderr)
+        
+        if result.returncode == 0:
+            print("\n✅ All game over system tests passed!")
+        else:
+            print(f"\n❌ Tests failed with exit code {result.returncode}")
+            
+        return result.returncode == 0
+        
+    except Exception as e:
+        print(f"Error running tests: {e}")
+        return False
+
 if __name__ == "__main__":
     print("🐸 Frog Platformer Test Suite")
     print("=" * 60)
@@ -63,9 +88,11 @@ if __name__ == "__main__":
     collision_success = run_collision_tests()
     print()
     camera_success = run_camera_tests()
+    print()
+    game_over_success = run_game_over_tests()
     
     print("\n" + "=" * 60)
-    if collision_success and camera_success:
+    if collision_success and camera_success and game_over_success:
         print("🎉 All tests passed successfully!")
         sys.exit(0)
     else:

@@ -346,6 +346,27 @@ class Camera:
             float: Total scroll distance from starting position (positive = scrolled up)
         """
         return self.max_y - self.y  # Positive when camera has moved up (y decreased)
+    
+    def is_frog_below_screen(self, frog, margin=50):
+        """
+        Check if the frog has fallen below the visible screen area
+        
+        Args:
+            frog (Frog): The frog object to check
+            margin (float): Extra margin below screen before triggering game over
+            
+        Returns:
+            bool: True if frog is below screen (game over), False otherwise
+        """
+        if not frog:
+            return False
+            
+        # Calculate the bottom of the screen in world coordinates
+        screen_bottom = self.screen_to_world_y(HEIGHT)
+        
+        # Check if frog is below screen bottom plus margin
+        frog_bottom = frog.y + frog.height // 2
+        return frog_bottom > screen_bottom + margin
 
 # Global game state
 game_state = GameState.PLAYING
@@ -424,6 +445,14 @@ def init_game():
     # Generate reachable platforms starting from frog position
     platforms = generate_reachable_platforms(WIDTH // 2, HEIGHT - 50, 25)
 
+def restart_game():
+    """
+    Restart the game by resetting all game objects and state
+    """
+    global game_state
+    game_state = GameState.PLAYING
+    init_game()
+
 def handle_input():
     """
     Handle player input for frog movement
@@ -472,13 +501,21 @@ def update():
         # Update camera to follow frog
         if camera and frog:
             camera.update(frog)
+            
+            # Check if frog has fallen below screen (game over condition)
+            if camera.is_frog_below_screen(frog):
+                game_state = GameState.GAME_OVER
         
         # Update platforms
         for platform in platforms:
             platform.update()
     elif game_state == GameState.GAME_OVER:
-        # Game over logic will be implemented later
-        pass
+        # Handle game over input
+        if keyboard.space or keyboard.RETURN:
+            # Restart the game
+            restart_game()
+        elif keyboard.escape:
+            exit()
 
 def draw():
     """
@@ -531,8 +568,20 @@ def draw():
             screen.draw.text(f"Platforms: {len(platforms)} | Camera Mode: {'AUTO-SCROLL' if camera.auto_scroll_enabled else 'FOLLOW-FROG'}", 
                             topleft=(10, 70), fontsize=14, color="white")
     elif game_state == GameState.GAME_OVER:
-        # Game over screen will be implemented later
-        screen.draw.text("Game Over", center=(WIDTH//2, HEIGHT//2), 
+        # Game over screen
+        screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 
                         fontsize=48, color="red")
+        
+        # Show final score (scroll distance)
+        if camera:
+            final_score = int(camera.get_scroll_distance())
+            screen.draw.text(f"Height Reached: {final_score}", center=(WIDTH//2, HEIGHT//2 - 10), 
+                            fontsize=24, color="white")
+        
+        # Instructions
+        screen.draw.text("Press SPACE or RETURN to restart", center=(WIDTH//2, HEIGHT//2 + 30), 
+                        fontsize=20, color="white")
+        screen.draw.text("Press ESC to quit", center=(WIDTH//2, HEIGHT//2 + 60), 
+                        fontsize=16, color="white")
 
 # Run the game - Pygame Zero will handle this automatically
