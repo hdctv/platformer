@@ -69,10 +69,9 @@ class Frog:
         # State tracking
         self.on_ground = False
         
-        # Create the sprite using Pygame Zero Actor
-        # For now, we'll use a simple colored rectangle as placeholder
-        # This will be replaced with actual frog sprite later
-        self.sprite = Actor('frog', (x, y))
+        # Sprite will be added later when we have actual image assets
+        # For now, we'll use rectangle rendering in the draw function
+        self.sprite = None
         
         # Set a default size for collision detection
         self.width = 32
