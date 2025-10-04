@@ -276,15 +276,16 @@ class Platform:
             str: Color name for rendering
         """
         if self.platform_type == PlatformType.SLIPPERY:
-            # Create shine effect for slippery platforms
+            # Create subtle shine effect for slippery platforms
             import math
             shine_intensity = (math.sin(self.ice_shine_timer) + 1) / 2  # 0 to 1
-            if shine_intensity > 0.8:
-                return 'white'  # Bright shine
-            elif shine_intensity > 0.6:
-                return 'lightcyan'  # Medium shine
+            # Only show shine effect occasionally (higher threshold)
+            if shine_intensity > 0.95:
+                return 'white'  # Bright shine (very rare)
+            elif shine_intensity > 0.85:
+                return 'lightcyan'  # Medium shine (rare)
             else:
-                return self.color  # Base color
+                return self.color  # Base lightblue color (most of the time)
                 
         elif self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
             # Flash red when about to break
@@ -353,17 +354,16 @@ class Frog:
         elif self.x > WIDTH - self.width // 2:
             self.x = WIDTH - self.width // 2
         
-        # Handle continuous slippery effects
+        # Handle continuous slippery effects while on slippery platform
         if self.on_slippery_surface and self.slippery_platform:
             # Apply continuous friction reduction while on slippery platform
             friction_factor = self.slippery_platform.get_friction_multiplier()
             # Gradually reduce horizontal velocity (but not too aggressively)
             self.vx *= (0.95 + friction_factor * 0.05)  # Smooth friction application
         
-        # Reset surface state - will be set by platform collision if applicable
+        # Reset ground state - will be set by platform collision if applicable
         self.on_ground = False
-        self.on_slippery_surface = False
-        self.slippery_platform = None
+        # Note: slippery surface state will be reset in check_platform_collision
     
     def jump(self):
         """
@@ -401,6 +401,10 @@ class Frog:
         Args:
             platforms (list): List of platform objects to check collision against
         """
+        # Reset slippery surface state - will be set by platform collision if applicable
+        self.on_slippery_surface = False
+        self.slippery_platform = None
+        
         for platform in platforms:
             if platform.check_collision(self):
                 platform.on_collision(self)

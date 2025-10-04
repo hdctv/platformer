@@ -145,16 +145,16 @@ class TestSlipperyPlatformMechanics(unittest.TestCase):
         # The important thing is the animation is working
         self.assertTrue(hasattr(platform, 'ice_shine_timer'))
     
-    def test_slippery_state_reset_on_update(self):
-        """Test frog slippery state resets properly"""
+    def test_slippery_state_reset_on_collision_check(self):
+        """Test frog slippery state resets properly during collision checking"""
         # Set frog on slippery surface
         self.frog.on_slippery_surface = True
         self.frog.slippery_platform = self.slippery_platform
         
-        # Update frog (should reset slippery state)
-        self.frog.update()
+        # Check collision (should reset slippery state first, then set it again if on slippery platform)
+        self.frog.check_platform_collision([])  # Empty list means no platforms to land on
         
-        # State should be reset (will be set again by collision if still on platform)
+        # State should be reset since no platforms were found
         self.assertFalse(self.frog.on_slippery_surface)
         self.assertIsNone(self.frog.slippery_platform)
     
