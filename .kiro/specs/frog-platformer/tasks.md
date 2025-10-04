@@ -94,7 +94,7 @@
     - Handle platform removal and frog physics when platform breaks
     - _Requirements: 4.3_
   
-  - [ ] 6.4 Implement moving platform mechanics
+  - [x] 6.4 Implement moving platform mechanics
     - Add horizontal movement behavior to moving platforms
     - Handle frog movement when standing on moving platforms
     - _Requirements: 4.4_
