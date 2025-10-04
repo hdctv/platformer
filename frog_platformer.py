@@ -165,11 +165,18 @@ class Frog:
         # State tracking
         self.on_ground = False
         
-        # Sprite will be added later when we have actual image assets
-        # For now, we'll use rectangle rendering in the draw function
-        self.sprite = None
+        # Load frog sprite
+        import pygame
+        try:
+            # Load the sprite and convert for better performance
+            self.sprite_image = pygame.image.load('frg.png').convert()
+            # Set black (0, 0, 0) as the transparent color
+            self.sprite_image.set_colorkey((0, 0, 0))
+            self.has_sprite = True
+        except:
+            self.has_sprite = False
         
-        # Set a default size for collision detection
+        # Set size for collision detection (matches sprite size)
         self.width = 32
         self.height = 32
     
@@ -687,10 +694,8 @@ def draw():
     
     if game_state == GameState.PLAYING and camera:
         # Draw platforms using camera-relative coordinates
-        visible_count = 0
         for platform in platforms:
             if platform.active and camera.is_visible(platform.y, platform.height):
-                visible_count += 1
                 # Get screen coordinates for platform
                 screen_rect = platform.get_screen_rect(camera)
                 # Draw platform as brown rectangle
@@ -702,12 +707,16 @@ def draw():
         if frog:
             # Convert frog world coordinates to screen coordinates
             frog_screen_y = camera.world_to_screen_y(frog.y)
-            frog_screen_rect = Rect(frog.x - frog.width//2, frog_screen_y - frog.height//2, 
-                                   frog.width, frog.height)
+            frog_screen_x = frog.x - frog.width//2
+            frog_screen_y = frog_screen_y - frog.height//2
             
-            # For now, draw a simple green rectangle as the frog
-            # This will be replaced with actual sprite rendering later
-            screen.draw.filled_rect(frog_screen_rect, 'green')
+            # Draw frog sprite or fallback to rectangle
+            if frog.has_sprite:
+                screen.blit(frog.sprite_image, (frog_screen_x, frog_screen_y))
+            else:
+                # Fallback to green rectangle if sprite fails to load
+                frog_screen_rect = Rect(frog_screen_x, frog_screen_y, frog.width, frog.height)
+                screen.draw.filled_rect(frog_screen_rect, 'green')
         
         # Show game title and status (UI elements stay in screen coordinates)
         screen.draw.text("Frog Platformer", center=(WIDTH//2, 50), 
@@ -719,22 +728,12 @@ def draw():
                         center=(WIDTH//2, HEIGHT - 30), 
                         fontsize=16, color="white")
         
-        # Debug info (enhanced with camera and platform information)
+        # Debug info (enhanced with camera information)
         if frog and camera:
-            screen.draw.text(f"Frog World: ({int(frog.x)}, {int(frog.y)}) Screen: ({int(frog.x)}, {int(camera.world_to_screen_y(frog.y))})", 
-                            topleft=(10, 10), fontsize=14, color="white")
-            screen.draw.text(f"Velocity: ({frog.vx:.1f}, {frog.vy:.1f}) Ground: {frog.on_ground}", 
+            screen.draw.text(f"Height: {int(camera.get_scroll_distance())}", 
+                            topleft=(10, 10), fontsize=16, color="white")
+            screen.draw.text(f"Frog: ({int(frog.x)}, {int(frog.y)}) Ground: {frog.on_ground}", 
                             topleft=(10, 30), fontsize=14, color="white")
-            screen.draw.text(f"Camera Y: {camera.y:.1f} | Scroll Distance: {camera.get_scroll_distance():.1f}", 
-                            topleft=(10, 50), fontsize=14, color="white")
-            # Show platform Y coordinates for debugging
-            if len(platforms) > 0:
-                platform_ys = [f"{p.y:.0f}" for p in platforms[:5]]  # Show first 5 platform Y coords
-                screen.draw.text(f"Platform Ys: {', '.join(platform_ys)}...", 
-                                topleft=(10, 90), fontsize=12, color="yellow")
-            
-            screen.draw.text(f"Platforms: {len(platforms)} (Visible: {visible_count}) | Camera Mode: {'AUTO-SCROLL' if camera.auto_scroll_enabled else 'FOLLOW-FROG'}", 
-                            topleft=(10, 70), fontsize=14, color="white")
     elif game_state == GameState.GAME_OVER:
         # Game over screen
         screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 
