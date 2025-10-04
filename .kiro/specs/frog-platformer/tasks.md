@@ -84,7 +84,7 @@
     - Modify Platform class to support different types
     - _Requirements: 4.1_
   
-  - [ ] 6.2 Implement slippery platform mechanics
+  - [x] 6.2 Implement slippery platform mechanics
     - Add reduced friction when frog is on slippery platforms
     - Create distinct visual appearance for slippery platforms
     - _Requirements: 4.2_
