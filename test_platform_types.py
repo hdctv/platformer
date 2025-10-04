@@ -29,19 +29,20 @@ class TestPlatformTypes(unittest.TestCase):
         self.assertFalse(platform.should_break())
         self.assertEqual(platform.get_visual_color(), 'brown')
     
-    def test_slippery_platform(self):
-        """Test slippery platform behavior"""
-        platform = Platform(400, 350, 100, 20, PlatformType.SLIPPERY)
+    def test_conveyor_platform(self):
+        """Test conveyor platform behavior"""
+        platform = Platform(400, 350, 100, 20, PlatformType.CONVEYOR)
         
-        self.assertEqual(platform.platform_type, PlatformType.SLIPPERY)
-        self.assertEqual(platform.get_friction_multiplier(), 0.3)
+        self.assertEqual(platform.platform_type, PlatformType.CONVEYOR)
+        self.assertEqual(platform.get_friction_multiplier(), 1.0)
         self.assertFalse(platform.is_harmful())
-        self.assertEqual(platform.get_visual_color(), 'lightblue')
+        self.assertEqual(platform.get_visual_color(), 'gray')
         
-        # Test friction effect on frog
+        # Test conveyor effect on frog
         self.frog.vx = 10.0
         platform.on_frog_land(self.frog)
-        self.assertEqual(self.frog.vx, 3.0)  # 10.0 * 0.3
+        expected_vx = 10.0 + (platform.conveyor_speed * platform.conveyor_direction)
+        self.assertEqual(self.frog.vx, expected_vx)
     
     def test_breakable_platform(self):
         """Test breakable platform behavior"""
@@ -132,7 +133,7 @@ class TestPlatformTypes(unittest.TestCase):
         """Test that different platform types update correctly"""
         platforms = [
             Platform(400, 350, 100, 20, PlatformType.NORMAL),
-            Platform(400, 350, 100, 20, PlatformType.SLIPPERY),
+            Platform(400, 350, 100, 20, PlatformType.CONVEYOR),
             Platform(400, 350, 100, 20, PlatformType.BREAKABLE),
             Platform(400, 350, 100, 20, PlatformType.MOVING),
             Platform(400, 350, 100, 20, PlatformType.HARMFUL),
@@ -142,8 +143,8 @@ class TestPlatformTypes(unittest.TestCase):
         for platform in platforms:
             initial_active = platform.active
             platform.update(0.1)
-            # Normal, slippery, and harmful platforms should remain active
-            if platform.platform_type in [PlatformType.NORMAL, PlatformType.SLIPPERY, PlatformType.HARMFUL]:
+            # Normal, conveyor, and harmful platforms should remain active
+            if platform.platform_type in [PlatformType.NORMAL, PlatformType.CONVEYOR, PlatformType.HARMFUL]:
                 self.assertEqual(platform.active, initial_active)
 
 
@@ -162,7 +163,7 @@ class TestPlatformGenerator(unittest.TestCase):
         
         # Mid game - should have access to more types
         platform_type = self.generator.select_platform_type(250)
-        self.assertIn(platform_type, [PlatformType.NORMAL, PlatformType.SLIPPERY, PlatformType.BREAKABLE])
+        self.assertIn(platform_type, [PlatformType.NORMAL, PlatformType.CONVEYOR, PlatformType.BREAKABLE])
         
         # Late game - should have access to all types
         available_types = set()
@@ -189,8 +190,8 @@ class TestPlatformGenerator(unittest.TestCase):
             platform_type = self.generator.select_platform_type(150)
             available_at_150.append(platform_type)
         
-        # Should include slippery platforms
-        self.assertIn(PlatformType.SLIPPERY, available_at_150)
+        # Should include conveyor platforms
+        self.assertIn(PlatformType.CONVEYOR, available_at_150)
         
         # Test that harmful platforms are only available after height 400
         available_at_300 = []
@@ -221,7 +222,7 @@ class TestPlatformGenerator(unittest.TestCase):
     def test_platform_reuse_with_types(self):
         """Test that platform reuse works with different types"""
         # Create and deactivate a platform
-        platform1 = self.generator.create_platform(400, 350, PlatformType.SLIPPERY)
+        platform1 = self.generator.create_platform(400, 350, PlatformType.CONVEYOR)
         platform1.active = False
         self.generator.inactive_platforms.append(platform1)
         
@@ -246,7 +247,7 @@ class TestPlatformInteractions(unittest.TestCase):
         """Test frog landing behavior on different platform types"""
         platforms = [
             Platform(400, 350, 100, 20, PlatformType.NORMAL),
-            Platform(400, 350, 100, 20, PlatformType.SLIPPERY),
+            Platform(400, 350, 100, 20, PlatformType.CONVEYOR),
             Platform(400, 350, 100, 20, PlatformType.BREAKABLE),
             Platform(400, 350, 100, 20, PlatformType.MOVING),
             Platform(400, 350, 100, 20, PlatformType.HARMFUL),
@@ -266,18 +267,18 @@ class TestPlatformInteractions(unittest.TestCase):
             self.assertTrue(self.frog.on_ground)
             self.assertEqual(self.frog.y, platform.y - self.frog.height//2)
     
-    def test_slippery_platform_friction_effect(self):
-        """Test that slippery platforms reduce frog's horizontal velocity"""
-        platform = Platform(400, 350, 100, 20, PlatformType.SLIPPERY)
+    def test_conveyor_platform_movement_effect(self):
+        """Test that conveyor platforms add sideways movement to frog"""
+        platform = Platform(400, 350, 100, 20, PlatformType.CONVEYOR)
         
         # Set frog horizontal velocity
-        self.frog.vx = 10.0
+        self.frog.vx = 0.0
         
-        # Land on slippery platform
+        # Land on conveyor platform
         platform.on_frog_land(self.frog)
         
-        # Velocity should be reduced by friction
-        expected_vx = 10.0 * platform.get_friction_multiplier()
+        # Velocity should be changed by conveyor movement
+        expected_vx = platform.conveyor_speed * platform.conveyor_direction
         self.assertEqual(self.frog.vx, expected_vx)
     
     def test_moving_platform_carries_frog(self):

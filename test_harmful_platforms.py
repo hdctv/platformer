@@ -103,11 +103,11 @@ class TestHarmfulPlatformMechanics(unittest.TestCase):
         self.assertFalse(self.normal_platform.is_harmful())
         
         # Test other platform types
-        slippery = Platform(400, 350, 100, 20, PlatformType.SLIPPERY)
+        conveyor = Platform(400, 350, 100, 20, PlatformType.CONVEYOR)
         breakable = Platform(400, 350, 100, 20, PlatformType.BREAKABLE)
         moving = Platform(400, 350, 100, 20, PlatformType.MOVING)
         
-        self.assertFalse(slippery.is_harmful())
+        self.assertFalse(conveyor.is_harmful())
         self.assertFalse(breakable.is_harmful())
         self.assertFalse(moving.is_harmful())
 

@@ -19,7 +19,7 @@ GAME_CONFIG = {
         'min_horizontal': 100
     },
     'platform_introduction': {
-        100: ['slippery'],
+        100: ['conveyor'],
         200: ['breakable'],
         300: ['moving'],
         400: ['harmful']
@@ -39,7 +39,7 @@ class GameState(Enum):
 # Platform Type Enum
 class PlatformType(Enum):
     NORMAL = "normal"
-    SLIPPERY = "slippery"
+    CONVEYOR = "conveyor"
     BREAKABLE = "breakable"
     MOVING = "moving"
     HARMFUL = "harmful"
@@ -142,11 +142,11 @@ class Platform:
             self.friction = 1.0
             self.color = 'brown'
             
-        elif self.platform_type == PlatformType.SLIPPERY:
-            self.friction = 0.3  # Reduced friction
-            self.color = 'lightblue'
-            self.ice_shine_timer = 0.0  # For visual shine effect
-            self.continuous_slip = True  # Apply friction continuously while on platform
+        elif self.platform_type == PlatformType.CONVEYOR:
+            self.friction = 1.0  # Normal friction
+            self.color = 'gray'
+            self.conveyor_speed = 2.0  # Pixels per frame sideways movement
+            self.conveyor_direction = 1 if self.x % 2 == 0 else -1  # Alternate directions based on position
             
         elif self.platform_type == PlatformType.BREAKABLE:
             self.friction = 1.0
@@ -210,12 +210,12 @@ class Platform:
         frog.on_ground = True
         
         # Type-specific behavior
-        if self.platform_type == PlatformType.SLIPPERY:
-            # Apply reduced friction to horizontal movement
-            frog.vx *= self.friction
-            # Mark frog as being on slippery surface
-            frog.on_slippery_surface = True
-            frog.slippery_platform = self
+        if self.platform_type == PlatformType.CONVEYOR:
+            # Apply conveyor belt movement to frog
+            frog.vx += self.conveyor_speed * self.conveyor_direction
+            # Mark frog as being on conveyor
+            frog.on_conveyor = True
+            frog.conveyor_platform = self
             
         elif self.platform_type == PlatformType.BREAKABLE:
             # Start break timer
@@ -239,9 +239,9 @@ class Platform:
         Args:
             dt (float): Delta time in seconds
         """
-        if self.platform_type == PlatformType.SLIPPERY:
-            # Update shine animation timer
-            self.ice_shine_timer += dt * 2  # Shine animation speed
+        if self.platform_type == PlatformType.CONVEYOR:
+            # Conveyor platforms don't need special update behavior
+            pass
             
         elif self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
             # Update break timer
@@ -275,17 +275,9 @@ class Platform:
         Returns:
             str: Color name for rendering
         """
-        if self.platform_type == PlatformType.SLIPPERY:
-            # Create subtle shine effect for slippery platforms
-            import math
-            shine_intensity = (math.sin(self.ice_shine_timer) + 1) / 2  # 0 to 1
-            # Only show shine effect occasionally (higher threshold)
-            if shine_intensity > 0.95:
-                return 'white'  # Bright shine (very rare)
-            elif shine_intensity > 0.85:
-                return 'lightcyan'  # Medium shine (rare)
-            else:
-                return self.color  # Base lightblue color (most of the time)
+        if self.platform_type == PlatformType.CONVEYOR:
+            # Conveyor platforms have a consistent gray appearance
+            return self.color
                 
         elif self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
             # Flash red when about to break
@@ -318,8 +310,8 @@ class Frog:
         
         # State tracking
         self.on_ground = False
-        self.on_slippery_surface = False
-        self.slippery_platform = None
+        self.on_conveyor = False
+        self.conveyor_platform = None
         self.touched_harmful_platform = False
         
         # Load frog sprite
@@ -354,16 +346,14 @@ class Frog:
         elif self.x > WIDTH - self.width // 2:
             self.x = WIDTH - self.width // 2
         
-        # Handle continuous slippery effects while on slippery platform
-        if self.on_slippery_surface and self.slippery_platform:
-            # Apply continuous friction reduction while on slippery platform
-            friction_factor = self.slippery_platform.get_friction_multiplier()
-            # Gradually reduce horizontal velocity (but not too aggressively)
-            self.vx *= (0.95 + friction_factor * 0.05)  # Smooth friction application
+        # Handle continuous conveyor effects while on conveyor platform
+        if self.on_conveyor and self.conveyor_platform:
+            # Apply continuous conveyor movement
+            self.vx += self.conveyor_platform.conveyor_speed * self.conveyor_platform.conveyor_direction * 0.5
         
         # Reset ground state - will be set by platform collision if applicable
         self.on_ground = False
-        # Note: slippery surface state will be reset in check_platform_collision
+        # Note: conveyor state will be reset in check_platform_collision
     
     def jump(self):
         """
@@ -383,16 +373,8 @@ class Frog:
         """
         base_speed = GAME_CONFIG['horizontal_speed']
         
-        # Reduce control on slippery surfaces
-        if self.on_slippery_surface and self.slippery_platform:
-            # Less responsive controls on slippery platforms
-            control_factor = 0.6  # 60% control
-            target_vx = direction * base_speed * control_factor
-            # Gradual acceleration instead of instant
-            self.vx += (target_vx - self.vx) * 0.3
-        else:
-            # Normal movement
-            self.vx = direction * base_speed
+        # Normal movement (conveyor platforms don't affect control responsiveness)
+        self.vx = direction * base_speed
     
     def check_platform_collision(self, platforms):
         """
@@ -401,9 +383,9 @@ class Frog:
         Args:
             platforms (list): List of platform objects to check collision against
         """
-        # Reset slippery surface state - will be set by platform collision if applicable
-        self.on_slippery_surface = False
-        self.slippery_platform = None
+        # Reset conveyor state - will be set by platform collision if applicable
+        self.on_conveyor = False
+        self.conveyor_platform = None
         
         for platform in platforms:
             if platform.check_collision(self):
@@ -457,7 +439,7 @@ class PlatformGenerator:
         
         # Platform type generation settings
         self.type_introduction_heights = {
-            100: [PlatformType.SLIPPERY],
+            100: [PlatformType.CONVEYOR],
             200: [PlatformType.BREAKABLE],
             300: [PlatformType.MOVING],
             400: [PlatformType.HARMFUL]
