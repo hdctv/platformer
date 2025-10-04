@@ -520,6 +520,10 @@ class PlatformGenerator:
             platform = self.create_platform(next_x, next_y, platform_type)
             self.active_platforms.append(platform)
             
+            # Add safety platform for harmful platforms to prevent softlocks
+            if platform_type == PlatformType.HARMFUL:
+                self.add_safety_platform_for_harmful(next_x, next_y)
+            
             # Ensure minimum density around this platform
             self.ensure_minimum_density(next_x, next_y)
             
@@ -945,6 +949,50 @@ class PlatformGenerator:
         else:
             # Use normal platform
             return PlatformType.NORMAL
+    
+    def add_safety_platform_for_harmful(self, harmful_x, harmful_y):
+        """
+        Add a normal platform near a harmful platform to prevent softlocks
+        
+        Args:
+            harmful_x (float): X position of the harmful platform
+            harmful_y (float): Y position of the harmful platform
+        """
+        import random
+        
+        # Try to place safety platform at same Y level, offset horizontally
+        safety_distance = 150  # Distance from harmful platform
+        margin = self.platform_width // 2 + 20
+        
+        # Try both sides of the harmful platform
+        for direction in [1, -1]:  # Right first, then left
+            safety_x = harmful_x + (direction * safety_distance)
+            
+            # Keep within screen bounds
+            if margin <= safety_x <= WIDTH - margin:
+                # Check if position is clear
+                if not self.position_overlaps_existing(safety_x, harmful_y):
+                    # Create safety platform
+                    safety_platform = self.create_platform(safety_x, harmful_y, PlatformType.NORMAL)
+                    self.active_platforms.append(safety_platform)
+                    return  # Successfully added safety platform
+        
+        # If same Y level doesn't work, try slightly above or below
+        for y_offset in [-40, 40]:  # Try above first, then below
+            safety_y = harmful_y + y_offset
+            
+            # Try both sides again
+            for direction in [1, -1]:
+                safety_x = harmful_x + (direction * safety_distance)
+                
+                # Keep within screen bounds
+                if margin <= safety_x <= WIDTH - margin:
+                    # Check if position is clear
+                    if not self.position_overlaps_existing(safety_x, safety_y):
+                        # Create safety platform
+                        safety_platform = self.create_platform(safety_x, safety_y, PlatformType.NORMAL)
+                        self.active_platforms.append(safety_platform)
+                        return  # Successfully added safety platform
 
 # Camera Class for scroll management
 class Camera:
