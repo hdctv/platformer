@@ -23,6 +23,14 @@ GAME_CONFIG = {
         200: ['breakable'],
         300: ['moving'],
         400: ['harmful']
+    },
+    'laser_config': {
+        'introduction_height': 50000,  # Lasers appear after 50,000 height
+        'warning_duration': 2.0,       # 2 seconds warning phase
+        'firing_duration': 0.3,        # 0.3 seconds laser active
+        'laser_height': 96,            # 3 frog heights (32 * 3)
+        'spawn_chance': 0.15,          # 15% chance per generation cycle
+        'warning_oscillation_speed': 8 # Oscillation cycles per second
     }
 }
 
@@ -46,12 +54,18 @@ class PlatformType(Enum):
     BOUNCY = "bouncy"
     HARMFUL = "harmful"
 
+# Laser State Enum
+class LaserState(Enum):
+    WARNING = "warning"
+    FIRING = "firing"
+    INACTIVE = "inactive"
+
 # Platform Class
 class Platform:
     """
     Platform class with position, size, and collision detection
     """
-    def __init__(self, x, y, width=100, height=20, platform_type=PlatformType.NORMAL):
+    def __init__(self, x, y, width=200, height=20, platform_type=PlatformType.NORMAL):
         """
         Initialize a platform
         
@@ -162,7 +176,7 @@ class Platform:
             self.friction = 1.0
             self.color = 'orange'
             self.break_timer = 0.0
-            self.break_delay = 1.0  # Seconds before breaking
+            self.break_delay = 0.8  # Seconds before breaking (reduced for more urgency)
             self.stepped_on = False
             
         elif self.platform_type == PlatformType.MOVING:
@@ -328,10 +342,166 @@ class Platform:
         elif self.platform_type == PlatformType.BREAKABLE and self.stepped_on:
             # Flash red when about to break
             flash_intensity = self.break_timer / self.break_delay
-            if flash_intensity > 0.7:
+            if flash_intensity > 0.0:  # Start flashing immediately when touched
                 return 'red' if int(self.break_timer * 10) % 2 else self.color
         
         return getattr(self, 'color', 'brown')
+
+# Laser Obstacle Class
+class Laser:
+    """
+    Laser obstacle that appears at high altitudes with warning phase then fires across screen
+    """
+    def __init__(self, y, side='left'):
+        """
+        Initialize a laser obstacle
+        
+        Args:
+            y (float): Y position (world coordinates)
+            side (str): 'left' or 'right' - which side the laser fires from
+        """
+        self.y = y
+        self.side = side
+        self.state = LaserState.WARNING
+        
+        # Position based on side
+        if side == 'left':
+            self.warning_x = 30  # Warning circle position
+            self.laser_start_x = 0
+            self.laser_end_x = WIDTH
+        else:
+            self.warning_x = WIDTH - 30
+            self.laser_start_x = WIDTH
+            self.laser_end_x = 0
+        
+        # Timing and visual properties
+        self.timer = 0.0
+        self.warning_duration = GAME_CONFIG['laser_config']['warning_duration']
+        self.firing_duration = GAME_CONFIG['laser_config']['firing_duration']
+        self.laser_height = GAME_CONFIG['laser_config']['laser_height']
+        self.oscillation_speed = GAME_CONFIG['laser_config']['warning_oscillation_speed']
+        
+        # Visual properties
+        self.warning_radius_base = 15
+        self.warning_radius_oscillation = 8
+        self.active = True
+    
+    def update(self, dt=1/60):
+        """
+        Update laser state and timing
+        
+        Args:
+            dt (float): Delta time in seconds
+        """
+        if not self.active:
+            return
+            
+        self.timer += dt
+        
+        if self.state == LaserState.WARNING:
+            if self.timer >= self.warning_duration:
+                # Switch to firing state
+                self.state = LaserState.FIRING
+                self.timer = 0.0
+        elif self.state == LaserState.FIRING:
+            if self.timer >= self.firing_duration:
+                # Laser finished, deactivate
+                self.state = LaserState.INACTIVE
+                self.active = False
+    
+    def get_warning_radius(self):
+        """
+        Get the current radius of the warning circle (oscillating)
+        
+        Returns:
+            float: Current warning circle radius
+        """
+        if self.state != LaserState.WARNING:
+            return 0
+            
+        # Create oscillating radius using sine wave
+        import math
+        oscillation = math.sin(self.timer * self.oscillation_speed * 2 * math.pi)
+        return self.warning_radius_base + (oscillation * self.warning_radius_oscillation)
+    
+    def get_warning_color(self):
+        """
+        Get the current color of the warning circle
+        
+        Returns:
+            str: Color name for warning circle
+        """
+        if self.state != LaserState.WARNING:
+            return 'red'
+            
+        # Transition from red to blue over warning duration
+        progress = self.timer / self.warning_duration
+        if progress < 0.5:
+            return 'red'
+        else:
+            return 'blue'
+    
+    def is_firing(self):
+        """
+        Check if laser is currently firing
+        
+        Returns:
+            bool: True if laser is in firing state
+        """
+        return self.state == LaserState.FIRING
+    
+    def check_collision(self, frog):
+        """
+        Check if frog is hit by the laser beam
+        
+        Args:
+            frog (Frog): The frog to check collision with
+            
+        Returns:
+            bool: True if frog is hit by laser
+        """
+        if not self.is_firing():
+            return False
+            
+        # Check if frog is within laser's vertical range
+        frog_top = frog.y - frog.height // 2
+        frog_bottom = frog.y + frog.height // 2
+        laser_top = self.y - self.laser_height // 2
+        laser_bottom = self.y + self.laser_height // 2
+        
+        # Check vertical overlap
+        if frog_bottom < laser_top or frog_top > laser_bottom:
+            return False
+            
+        # Laser spans entire screen width, so any vertical overlap = hit
+        return True
+    
+    def get_screen_y(self, camera):
+        """
+        Convert world Y coordinate to screen Y coordinate
+        
+        Args:
+            camera (Camera): Camera object for coordinate conversion
+            
+        Returns:
+            float: Screen Y coordinate
+        """
+        return camera.world_to_screen_y(self.y)
+    
+    def is_visible_on_screen(self, camera):
+        """
+        Check if laser is visible on screen
+        
+        Args:
+            camera (Camera): Camera object
+            
+        Returns:
+            bool: True if laser should be rendered
+        """
+        screen_y = self.get_screen_y(camera)
+        # Add some margin for the laser height
+        margin = self.laser_height
+        return -margin <= screen_y <= HEIGHT + margin
 
 # Frog Character Class
 class Frog:
@@ -359,6 +529,7 @@ class Frog:
         self.on_conveyor = False
         self.conveyor_platform = None
         self.touched_harmful_platform = False
+        self.hit_by_laser = False
         self.last_platform_landed = None  # For progress tracking
         
         # Load frog sprite
@@ -457,6 +628,18 @@ class Frog:
                 self.last_platform_landed = platform.platform_type
                 
                 break  # Only land on one platform at a time
+    
+    def check_laser_collision(self, lasers):
+        """
+        Check if frog is hit by any active lasers
+        
+        Args:
+            lasers (list): List of laser objects to check collision against
+        """
+        for laser in lasers:
+            if laser.check_collision(self):
+                self.hit_by_laser = True
+                break  # Only need to detect one hit
 
 # Platform Generator Class
 class PlatformGenerator:
@@ -471,7 +654,7 @@ class PlatformGenerator:
         self.min_vertical_gap = 60
         self.max_vertical_gap = 100
         self.max_horizontal_reach = 120
-        self.platform_width = 100
+        self.platform_width = 200  # Doubled from 100 for better balance
         self.platform_height = 20
         
         # Physics-based reachability parameters
@@ -503,6 +686,12 @@ class PlatformGenerator:
             'max_active_platforms': 0
         }
         
+        # Laser obstacle management
+        self.active_lasers = []
+        self.laser_spawn_chance = GAME_CONFIG['laser_config']['spawn_chance']
+        self.laser_introduction_height = GAME_CONFIG['laser_config']['introduction_height']
+        self.last_laser_height = 0  # Track last laser spawn height
+        
         # Platform type generation settings
         self.type_introduction_heights = {
             10000: [PlatformType.CONVEYOR],     # "Conveyor Master" achievement
@@ -512,7 +701,7 @@ class PlatformGenerator:
             30000: [PlatformType.BOUNCY],       # "Bounce Champion" achievement
             40000: [PlatformType.HARMFUL]       # "Danger Navigator" achievement
         }
-        self.special_platform_chance = 0.2  # 20% chance for special platforms (reduced from 30%)
+        self.special_platform_chance = 0.25  # 25% chance for special platforms (increased for more breakable platforms)
     
     def generate_platforms_above_camera(self, camera, target_height, progress_tracker=None):
         """
@@ -649,12 +838,18 @@ class PlatformGenerator:
         if self.highest_platform_y > target_height:
             self.generate_platforms_above_camera(camera, target_height, progress_tracker)
             
+            # Generate lasers if at sufficient height
+            self.generate_lasers_above_camera(camera, target_height)
+            
             # Periodically validate and fix layout issues
             if len(self.active_platforms) % 10 == 0:  # Check every 10 platforms
                 issues = self.validate_platform_layout()
                 if (issues['unreachable_platforms'] or 
                     len(issues['low_density_areas']) > 2):  # Fix if significant issues
                     self.fix_layout_issues(issues)
+        
+        # Update active lasers
+        self.update_lasers()
     
     def get_active_platforms(self):
         """
@@ -1056,8 +1251,8 @@ class PlatformGenerator:
         
         # Define base weights for each platform type
         base_weights = {
-            PlatformType.CONVEYOR: 4.0,    # Common, helpful (increased)
-            PlatformType.BREAKABLE: 3.0,   # Moderate challenge (increased)
+            PlatformType.CONVEYOR: 3.5,    # Common, helpful (slightly reduced)
+            PlatformType.BREAKABLE: 7.0,   # Much more common, immediate challenge (increased from 5.0)
             PlatformType.MOVING: 2.0,      # Moderate challenge
             PlatformType.VERTICAL: 1.5,    # More challenging
             PlatformType.BOUNCY: 1.0,      # High risk/reward
@@ -1193,6 +1388,88 @@ class PlatformGenerator:
                         safety_platform = self.create_platform(safety_x, safety_y, PlatformType.NORMAL)
                         self.active_platforms.append(safety_platform)
                         return  # Successfully added safety platform
+    
+    def generate_lasers_above_camera(self, camera, target_height):
+        """
+        Generate laser obstacles above the camera view
+        
+        Args:
+            camera (Camera): Camera object to determine generation area
+            target_height (float): Generate lasers up to this Y coordinate
+        """
+        import random
+        
+        # Only generate lasers if we're at sufficient height
+        current_height = abs(camera.y)
+        if current_height < self.laser_introduction_height:
+            return
+        
+        # Check if we should spawn a laser
+        # Generate lasers every ~400 units of height on average
+        laser_spacing = 400
+        next_laser_height = self.last_laser_height - laser_spacing
+        
+        if camera.y <= next_laser_height:
+            # Chance to spawn laser
+            if random.random() < self.laser_spawn_chance:
+                # Choose random side
+                side = random.choice(['left', 'right'])
+                
+                # Position laser well above current camera position for visibility
+                laser_y = camera.y - 200  # 200 pixels above camera
+                
+                # Create laser
+                laser = Laser(laser_y, side)
+                self.active_lasers.append(laser)
+                
+                # Update last laser height
+                self.last_laser_height = laser_y
+            else:
+                # Even if we don't spawn, update the height to prevent spam
+                self.last_laser_height = next_laser_height
+    
+    def update_lasers(self, dt=1/60):
+        """
+        Update all active lasers and remove inactive ones
+        
+        Args:
+            dt (float): Delta time in seconds
+        """
+        # Update all lasers
+        for laser in self.active_lasers:
+            laser.update(dt)
+        
+        # Remove inactive lasers
+        self.active_lasers = [laser for laser in self.active_lasers if laser.active]
+    
+    def cleanup_lasers_below_camera(self, camera, cleanup_margin=None):
+        """
+        Remove lasers that are far below the camera view
+        
+        Args:
+            camera (Camera): Camera object to determine cleanup area
+            cleanup_margin (float): Extra margin below screen before cleanup (optional)
+        """
+        if cleanup_margin is None:
+            cleanup_margin = self.cleanup_margin
+            
+        screen_bottom = camera.screen_to_world_y(HEIGHT)
+        cleanup_threshold = screen_bottom + cleanup_margin
+        
+        # Remove lasers below threshold
+        self.active_lasers = [
+            laser for laser in self.active_lasers 
+            if laser.y <= cleanup_threshold
+        ]
+    
+    def get_active_lasers(self):
+        """
+        Get list of currently active lasers
+        
+        Returns:
+            list: List of active Laser objects
+        """
+        return self.active_lasers
 
 # Progress Tracking System
 class ProgressTracker:
@@ -1706,11 +1983,11 @@ def init_game():
     # Initialize progress tracker
     progress_tracker = ProgressTracker()
     
-    # Start the frog in the center-bottom of the screen
-    frog = Frog(WIDTH // 2, HEIGHT - 100)
+    # Start the frog in the left corner of the screen
+    frog = Frog(100, HEIGHT - 100)  # Left side instead of center
     
-    # Create initial ground platform
-    ground_platform = Platform(WIDTH // 2, HEIGHT - 50, 200, 20)
+    # Create initial ground platform spanning full screen width
+    ground_platform = Platform(WIDTH // 2, HEIGHT - 50, WIDTH, 20)  # Full screen width
     platform_generator.active_platforms.append(ground_platform)
     platform_generator.highest_platform_y = HEIGHT - 50
     
@@ -1786,6 +2063,12 @@ def update():
             # Check if frog touched a harmful platform
             if frog.touched_harmful_platform:
                 game_state = GameState.GAME_OVER
+            
+            # Check laser collisions
+            if platform_generator:
+                frog.check_laser_collision(platform_generator.get_active_lasers())
+                if frog.hit_by_laser:
+                    game_state = GameState.GAME_OVER
         
         # Update camera to follow frog
         if camera and frog:
@@ -1804,6 +2087,7 @@ def update():
         if platform_generator and camera:
             platform_generator.update(camera, progress_tracker)
             platform_generator.cleanup_platforms_below_camera(camera)
+            platform_generator.cleanup_lasers_below_camera(camera)
             # Update platforms list from generator
             platforms[:] = platform_generator.get_active_platforms()
         
@@ -1837,6 +2121,29 @@ def draw():
                 screen.draw.filled_rect(screen_rect, platform_color)
                 # Draw platform border
                 screen.draw.rect(screen_rect, 'black')
+        
+        # Draw lasers
+        if platform_generator and camera:
+            for laser in platform_generator.get_active_lasers():
+                if laser.is_visible_on_screen(camera):
+                    laser_screen_y = laser.get_screen_y(camera)
+                    
+                    if laser.state == LaserState.WARNING:
+                        # Draw warning circle
+                        warning_radius = laser.get_warning_radius()
+                        warning_color = laser.get_warning_color()
+                        screen.draw.filled_circle((laser.warning_x, laser_screen_y), warning_radius, warning_color)
+                        screen.draw.circle((laser.warning_x, laser_screen_y), warning_radius, 'white')
+                        
+                    elif laser.state == LaserState.FIRING:
+                        # Draw laser beam across entire screen
+                        laser_top = laser_screen_y - laser.laser_height // 2
+                        laser_bottom = laser_screen_y + laser.laser_height // 2
+                        laser_rect = Rect(0, laser_top, WIDTH, laser.laser_height)
+                        screen.draw.filled_rect(laser_rect, 'red')
+                        # Add bright center line for visibility
+                        center_y = laser_screen_y
+                        screen.draw.line((0, center_y), (WIDTH, center_y), 'white')
         
         # Draw frog using camera-relative coordinates
         if frog:
