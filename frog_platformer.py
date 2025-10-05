@@ -7,7 +7,7 @@ from pygame import Rect
 
 # Game Configuration Constants
 GAME_CONFIG = {
-    'screen_width': 800,
+    'screen_width': 1200,  # Increased from 800 (1.5x wider)
     'screen_height': 600,
     'scroll_speed': 1.0,
     'gravity': 0.5,
@@ -1855,28 +1855,28 @@ def draw():
         
         # Show game title and status (UI elements stay in screen coordinates)
         screen.draw.text("Frog Platformer", center=(WIDTH//2, 50), 
-                        fontsize=36, color="white")
+                        fontsize=54, color="white")  # Increased from 36
         screen.draw.text("Use SPACE/UP to jump, ARROW KEYS/WASD to move", 
                         center=(WIDTH//2, HEIGHT - 50), 
-                        fontsize=16, color="white")
+                        fontsize=24, color="white")  # Increased from 16
         screen.draw.text("Press ESC to quit", 
                         center=(WIDTH//2, HEIGHT - 30), 
-                        fontsize=16, color="white")
+                        fontsize=24, color="white")  # Increased from 16
         
         # Debug info (enhanced with camera information)
         if frog and camera:
             screen.draw.text(f"Height: {int(camera.get_scroll_distance())}", 
-                            topleft=(10, 10), fontsize=16, color="white")
+                            topleft=(15, 15), fontsize=24, color="white")  # Increased size and position
             screen.draw.text(f"Frog: ({int(frog.x)}, {int(frog.y)}) Ground: {frog.on_ground}", 
-                            topleft=(10, 30), fontsize=14, color="white")
+                            topleft=(15, 45), fontsize=20, color="white")  # Increased size and position
             
             # Memory stats (show if M key is pressed)
             if platform_generator and keyboard.m:
                 stats = platform_generator.get_memory_stats()
                 screen.draw.text(f"Memory: Active={stats['active_platforms']} Inactive={stats['inactive_platforms']}", 
-                                topleft=(10, 50), fontsize=12, color="yellow")
+                                topleft=(15, 75), fontsize=18, color="yellow")  # Increased size and position
                 screen.draw.text(f"Created={stats['platforms_created']} Reused={stats['platforms_reused']} Efficiency={stats['reuse_efficiency']:.1f}%", 
-                                topleft=(10, 65), fontsize=12, color="yellow")
+                                topleft=(15, 100), fontsize=18, color="yellow")  # Increased size and position
         
         # Achievement notification display (sliding trophy animation)
         if progress_tracker:
@@ -1888,19 +1888,19 @@ def draw():
                 
                 # Only show achievement if slide progress is significant
                 if slide_progress > 0.01:
-                    # Calculate sliding position (slide in from top-right)
-                    final_x = WIDTH - 280  # Final position
-                    final_y = 80
-                    start_x = WIDTH + 50   # Start off-screen to the right
-                    start_y = -50          # Start above screen
+                    # Calculate sliding position (slide in from top-right) - scaled for wider screen
+                    final_x = WIDTH - 420  # Final position (scaled from 280)
+                    final_y = 120           # Scaled from 80
+                    start_x = WIDTH + 75    # Start off-screen to the right (scaled from 50)
+                    start_y = -75           # Start above screen (scaled from -50)
                     
                     # Interpolate position based on slide progress
                     current_x = start_x + (final_x - start_x) * slide_progress
                     current_y = start_y + (final_y - start_y) * slide_progress
                     
-                    # Draw achievement background with rounded corners effect
-                    bg_width = 270
-                    bg_height = 70
+                    # Draw achievement background with rounded corners effect - scaled up
+                    bg_width = 405          # Scaled from 270 (1.5x)
+                    bg_height = 105         # Scaled from 70 (1.5x)
                     bg_rect = Rect(current_x - 5, current_y - 5, bg_width, bg_height)
                     
                     # Draw background with subtle shadow effect
@@ -1909,25 +1909,27 @@ def draw():
                     screen.draw.filled_rect(bg_rect, (25, 25, 50))  # Dark blue background
                     screen.draw.rect(bg_rect, (255, 215, 0))  # Gold border
                     
-                    # Draw trophy image or fallback emoji
-                    trophy_x = current_x + 10
-                    trophy_y = current_y + 10
+                    # Draw trophy image or fallback emoji - scaled positions
+                    trophy_x = current_x + 15       # Scaled from 10
+                    trophy_y = current_y + 15       # Scaled from 10
                     
                     if trophy_image:
-                        # Draw the actual trophy.png image (scaled to 32x32)
-                        screen.blit(trophy_image, (trophy_x, trophy_y))
-                        text_start_x = trophy_x + 40  # 32px trophy + 8px spacing
+                        # Draw the actual trophy.png image (scaled to 48x48 for bigger UI)
+                        import pygame
+                        scaled_trophy = pygame.transform.scale(trophy_image, (48, 48))
+                        screen.blit(scaled_trophy, (trophy_x, trophy_y))
+                        text_start_x = trophy_x + 60  # 48px trophy + 12px spacing
                     else:
                         # Fallback to emoji if image failed to load
                         screen.draw.text("🏆", 
                                         topleft=(trophy_x, trophy_y), 
-                                        fontsize=24, color='gold')
-                        text_start_x = trophy_x + 35
+                                        fontsize=36, color='gold')  # Scaled from 24
+                        text_start_x = trophy_x + 52
                     
-                    # Draw achievement text with better formatting
+                    # Draw achievement text with better formatting - scaled up
                     screen.draw.text("ACHIEVEMENT UNLOCKED!", 
-                                    topleft=(text_start_x, current_y + 8), 
-                                    fontsize=12, color='gold')
+                                    topleft=(text_start_x, current_y + 12), 
+                                    fontsize=18, color='gold')  # Scaled from 12
                     
                     # Split achievement text into multiple lines if too long
                     if len(achievement_text) > 35:
@@ -1935,39 +1937,39 @@ def draw():
                         if " - " in achievement_text:
                             title, description = achievement_text.split(" - ", 1)
                             screen.draw.text(title, 
-                                            topleft=(text_start_x, current_y + 25), 
-                                            fontsize=11, color='white')
+                                            topleft=(text_start_x, current_y + 38), 
+                                            fontsize=16, color='white')  # Scaled from 11
                             screen.draw.text(description, 
-                                            topleft=(text_start_x, current_y + 40), 
-                                            fontsize=10, color='lightgray')
+                                            topleft=(text_start_x, current_y + 60), 
+                                            fontsize=15, color='lightgray')  # Scaled from 10
                         else:
                             # Just wrap long text
                             screen.draw.text(achievement_text[:35], 
-                                            topleft=(text_start_x, current_y + 25), 
-                                            fontsize=11, color='white')
+                                            topleft=(text_start_x, current_y + 38), 
+                                            fontsize=16, color='white')  # Scaled from 11
                             if len(achievement_text) > 35:
                                 screen.draw.text(achievement_text[35:], 
-                                                topleft=(text_start_x, current_y + 40), 
-                                                fontsize=10, color='lightgray')
+                                                topleft=(text_start_x, current_y + 60), 
+                                                fontsize=15, color='lightgray')  # Scaled from 10
                     else:
                         screen.draw.text(achievement_text, 
-                                        topleft=(text_start_x, current_y + 30), 
-                                        fontsize=11, color='white')
+                                        topleft=(text_start_x, current_y + 45), 
+                                        fontsize=16, color='white')  # Scaled from 11
     elif game_state == GameState.GAME_OVER:
         # Game over screen
         screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 
-                        fontsize=48, color="red")
+                        fontsize=72, color="red")  # Increased from 48
         
         # Show final score (scroll distance)
         if camera:
             final_score = int(camera.get_scroll_distance())
             screen.draw.text(f"Height Reached: {final_score}", center=(WIDTH//2, HEIGHT//2 - 10), 
-                            fontsize=24, color="white")
+                            fontsize=36, color="white")  # Increased from 24
         
         # Instructions
         screen.draw.text("Press SPACE or RETURN to restart", center=(WIDTH//2, HEIGHT//2 + 30), 
-                        fontsize=20, color="white")
+                        fontsize=30, color="white")  # Increased from 20
         screen.draw.text("Press ESC to quit", center=(WIDTH//2, HEIGHT//2 + 60), 
-                        fontsize=16, color="white")
+                        fontsize=24, color="white")  # Increased from 16
 
 # Run the game - Pygame Zero will handle this automatically
