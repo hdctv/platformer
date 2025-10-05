@@ -42,6 +42,7 @@ class PlatformType(Enum):
     CONVEYOR = "conveyor"
     BREAKABLE = "breakable"
     MOVING = "moving"
+    VERTICAL = "vertical"
     HARMFUL = "harmful"
 
 # Platform Class
@@ -171,6 +172,14 @@ class Platform:
             self.move_range = 100  # Pixels to move in each direction
             self.original_x = self.x
             
+        elif self.platform_type == PlatformType.VERTICAL:
+            self.friction = 1.0
+            self.color = 'cyan'
+            self.move_speed = 0.8  # Slightly slower for vertical movement
+            self.move_direction = 1  # 1 for up, -1 for down
+            self.move_range = 80  # Pixels to move in each direction
+            self.original_y = self.y
+            
         elif self.platform_type == PlatformType.HARMFUL:
             self.friction = 1.0
             self.color = 'red'
@@ -235,6 +244,10 @@ class Platform:
             # Frog moves with the platform
             frog.x += self.move_speed * self.move_direction
             
+        elif self.platform_type == PlatformType.VERTICAL:
+            # Frog moves with the vertical platform
+            frog.y += self.move_speed * self.move_direction
+            
         elif self.platform_type == PlatformType.HARMFUL:
             # Trigger game over immediately when frog touches harmful platform
             # Set a flag that the game loop will check
@@ -275,6 +288,16 @@ class Platform:
             elif self.x > WIDTH - margin:
                 self.x = WIDTH - margin
                 self.move_direction = -1
+                
+        elif self.platform_type == PlatformType.VERTICAL:
+            # Update vertical moving platform position
+            self.y += self.move_speed * self.move_direction
+            
+            # Reverse direction if reached movement limits
+            if self.y >= self.original_y + self.move_range:
+                self.move_direction = -1
+            elif self.y <= self.original_y - self.move_range:
+                self.move_direction = 1
     
     def get_visual_color(self):
         """
@@ -465,6 +488,7 @@ class PlatformGenerator:
             100: [PlatformType.CONVEYOR],
             200: [PlatformType.BREAKABLE],
             300: [PlatformType.MOVING],
+            350: [PlatformType.VERTICAL],
             400: [PlatformType.HARMFUL]
         }
         self.special_platform_chance = 0.3  # 30% chance for special platforms

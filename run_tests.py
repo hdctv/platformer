@@ -252,11 +252,14 @@ if __name__ == "__main__":
     harmful_platform_success = run_harmful_platform_tests()
     print()
     conveyor_platform_success = run_conveyor_platform_tests()
+    print()
+    vertical_platform_success = run_vertical_platform_tests()
     
     print("\n" + "=" * 60)
     all_success = (collision_success and camera_success and game_over_success and 
                    platform_gen_success and platform_cleanup_success and platform_reachability_success and
-                   platform_types_success and harmful_platform_success and conveyor_platform_success)
+                   platform_types_success and harmful_platform_success and conveyor_platform_success and
+                   vertical_platform_success)
     
     if all_success:
         print("🎉 All tests passed successfully!")
@@ -264,3 +267,28 @@ if __name__ == "__main__":
     else:
         print("❌ Some tests failed!")
         sys.exit(1)
+def 
+run_vertical_platform_tests():
+    """Run the vertical platform mechanics unit tests"""
+    print("Running vertical platform tests...")
+    print("=" * 50)
+    
+    try:
+        result = subprocess.run([sys.executable, "test_vertical_platforms.py"], 
+                              capture_output=True, text=True)
+        
+        print(result.stdout)
+        if result.stderr:
+            print("Warnings/Errors:")
+            print(result.stderr)
+        
+        if result.returncode == 0:
+            print("\n✅ All vertical platform tests passed!")
+        else:
+            print(f"\n❌ Tests failed with exit code {result.returncode}")
+            
+        return result.returncode == 0
+        
+    except Exception as e:
+        print(f"Error running tests: {e}")
+        return False

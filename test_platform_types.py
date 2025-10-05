@@ -82,6 +82,21 @@ class TestPlatformTypes(unittest.TestCase):
         platform.on_frog_land(self.frog)
         self.assertNotEqual(self.frog.x, initial_frog_x)
     
+    def test_vertical_platform(self):
+        """Test vertical platform behavior"""
+        platform = Platform(400, 350, 100, 20, PlatformType.VERTICAL)
+        
+        self.assertEqual(platform.platform_type, PlatformType.VERTICAL)
+        self.assertEqual(platform.get_friction_multiplier(), 1.0)
+        self.assertFalse(platform.is_harmful())
+        self.assertEqual(platform.get_visual_color(), 'cyan')
+        
+        # Test vertical movement effect on frog
+        initial_frog_y = self.frog.y
+        platform.on_frog_land(self.frog)
+        # Frog should have moved vertically
+        self.assertNotEqual(self.frog.y, initial_frog_y)
+    
     def test_harmful_platform(self):
         """Test harmful platform behavior"""
         platform = Platform(400, 350, 100, 20, PlatformType.HARMFUL)
@@ -143,8 +158,8 @@ class TestPlatformTypes(unittest.TestCase):
         for platform in platforms:
             initial_active = platform.active
             platform.update(0.1)
-            # Normal, conveyor, and harmful platforms should remain active
-            if platform.platform_type in [PlatformType.NORMAL, PlatformType.CONVEYOR, PlatformType.HARMFUL]:
+            # Normal, conveyor, vertical, and harmful platforms should remain active
+            if platform.platform_type in [PlatformType.NORMAL, PlatformType.CONVEYOR, PlatformType.VERTICAL, PlatformType.HARMFUL]:
                 self.assertEqual(platform.active, initial_active)
 
 
