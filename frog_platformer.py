@@ -145,7 +145,7 @@ class Platform:
         elif self.platform_type == PlatformType.CONVEYOR:
             self.friction = 1.0  # Normal friction
             self.color = 'gray'
-            self.conveyor_speed = 2.0  # Pixels per frame sideways movement
+            self.conveyor_speed = 4.0  # Pixels per frame sideways movement
             self.conveyor_direction = 1 if self.x % 2 == 0 else -1  # Alternate directions based on position
             
         elif self.platform_type == PlatformType.BREAKABLE:
@@ -349,7 +349,7 @@ class Frog:
         # Handle continuous conveyor effects while on conveyor platform
         if self.on_conveyor and self.conveyor_platform:
             # Apply continuous conveyor movement
-            self.vx += self.conveyor_platform.conveyor_speed * self.conveyor_platform.conveyor_direction * 0.5
+            self.vx += self.conveyor_platform.conveyor_speed * self.conveyor_platform.conveyor_direction * 0.8
         
         # Reset ground state - will be set by platform collision if applicable
         self.on_ground = False
