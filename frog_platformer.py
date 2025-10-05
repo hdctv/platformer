@@ -524,8 +524,9 @@ class PlatformGenerator:
             if platform_type == PlatformType.HARMFUL:
                 self.add_safety_platform_for_harmful(next_x, next_y)
             
-            # Ensure minimum density around this platform
-            self.ensure_minimum_density(next_x, next_y)
+            # Only ensure minimum density for normal platforms to avoid interfering with special platforms
+            if platform_type == PlatformType.NORMAL:
+                self.ensure_minimum_density(next_x, next_y)
             
             # Update tracking
             current_x = next_x
