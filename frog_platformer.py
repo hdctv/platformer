@@ -512,7 +512,7 @@ class PlatformGenerator:
             3750: [PlatformType.BOUNCY],
             4000: [PlatformType.HARMFUL]
         }
-        self.special_platform_chance = 0.3  # 30% chance for special platforms
+        self.special_platform_chance = 0.2  # 20% chance for special platforms (reduced from 30%)
     
     def generate_platforms_above_camera(self, camera, target_height, progress_tracker=None):
         """
@@ -1016,16 +1016,16 @@ class PlatformGenerator:
         # Progressive difficulty: increase special platform chance with height
         base_special_chance = self.special_platform_chance
         
-        # Calculate progressive multiplier (increases with height)
-        progress_multiplier = 1.0 + (height_progress / 10000.0)  # +100% at height 10000
-        progressive_chance = min(0.7, base_special_chance * progress_multiplier)  # Cap at 70%
+        # Calculate progressive multiplier (increases with height) - much slower progression
+        progress_multiplier = 1.0 + (height_progress / 20000.0)  # +50% at height 20000 (was +100% at 10000)
+        progressive_chance = min(0.5, base_special_chance * progress_multiplier)  # Cap at 50% (was 70%)
         
-        # Milestone bonus: increase chance after reaching milestones
+        # Milestone bonus: increase chance after reaching milestones - reduced bonus
         milestone_bonus = 0.0
         if progress_tracker and len(progress_tracker.milestones_reached) > 0:
-            milestone_bonus = len(progress_tracker.milestones_reached) * 0.05  # +5% per milestone
+            milestone_bonus = len(progress_tracker.milestones_reached) * 0.02  # +2% per milestone (was +5%)
         
-        total_special_chance = min(0.8, progressive_chance + milestone_bonus)  # Cap at 80%
+        total_special_chance = min(0.6, progressive_chance + milestone_bonus)  # Cap at 60% (was 80%)
         
         # Decide whether to use special platform
         if len(available_types) > 1 and random.random() < total_special_chance:
@@ -1056,12 +1056,12 @@ class PlatformGenerator:
         
         # Define base weights for each platform type
         base_weights = {
-            PlatformType.CONVEYOR: 3.0,    # Common, helpful
-            PlatformType.BREAKABLE: 2.5,   # Moderate challenge
+            PlatformType.CONVEYOR: 4.0,    # Common, helpful (increased)
+            PlatformType.BREAKABLE: 3.0,   # Moderate challenge (increased)
             PlatformType.MOVING: 2.0,      # Moderate challenge
             PlatformType.VERTICAL: 1.5,    # More challenging
             PlatformType.BOUNCY: 1.0,      # High risk/reward
-            PlatformType.HARMFUL: 0.5      # Rare, dangerous
+            PlatformType.HARMFUL: 1.5      # More dangerous platforms (increased from 0.5)
         }
         
         # Adjust weights based on progress
@@ -1074,9 +1074,9 @@ class PlatformGenerator:
                 difficulty_multiplier = 1.0 + (height_progress / 5000.0)  # Double weight at 5000
                 adjusted_weights[platform_type] = base_weight * difficulty_multiplier
             elif platform_type == PlatformType.HARMFUL:
-                # Harmful platforms become more common at very high heights
-                if height_progress > 6000:
-                    danger_multiplier = 1.0 + ((height_progress - 6000) / 4000.0)  # Increase after 6000
+                # Harmful platforms become more common at high heights - start earlier and scale more
+                if height_progress > 4500:  # Start increasing at 4500 (was 6000)
+                    danger_multiplier = 1.0 + ((height_progress - 4500) / 2500.0)  # Double by height 7000
                     adjusted_weights[platform_type] = base_weight * danger_multiplier
                 else:
                     adjusted_weights[platform_type] = base_weight
