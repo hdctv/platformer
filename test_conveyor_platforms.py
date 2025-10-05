@@ -30,7 +30,7 @@ class TestConveyorPlatformMechanics(unittest.TestCase):
         self.assertEqual(platform.color, 'gray')
         self.assertTrue(hasattr(platform, 'conveyor_speed'))
         self.assertTrue(hasattr(platform, 'conveyor_direction'))
-        self.assertEqual(platform.conveyor_speed, 3.5)
+        self.assertEqual(platform.conveyor_speed, 1.2)
         self.assertIn(platform.conveyor_direction, [-1, 1])  # Should be either left or right
     
     def test_frog_conveyor_state_tracking(self):

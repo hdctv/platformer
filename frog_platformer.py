@@ -155,7 +155,7 @@ class Platform:
         elif self.platform_type == PlatformType.CONVEYOR:
             self.friction = 1.0  # Normal friction
             self.color = 'gray'
-            self.conveyor_speed = 3.5  # Pixels per frame sideways movement
+            self.conveyor_speed = 1.2  # Pixels per frame sideways movement (reduced from 3.5)
             self.conveyor_direction = 1 if self.x % 2 == 0 else -1  # Alternate directions based on position
             
         elif self.platform_type == PlatformType.BREAKABLE:
@@ -400,7 +400,7 @@ class Frog:
             self.vx += conveyor_push
             
             # Cap maximum conveyor velocity to prevent extreme speeds
-            max_conveyor_speed = 8.0
+            max_conveyor_speed = 3.0  # Reduced from 8.0 to match slower conveyor speed
             if abs(self.vx) > max_conveyor_speed:
                 self.vx = max_conveyor_speed if self.vx > 0 else -max_conveyor_speed
         
@@ -1230,6 +1230,11 @@ class ProgressTracker:
         self.platforms_landed_on = 0
         self.bounces_performed = 0
         self.harmful_platforms_avoided = 0
+        
+        # Achievement notification system
+        self.active_achievement = None  # Current achievement being displayed
+        self.achievement_timer = 0.0    # Timer for achievement display
+        self.achievement_duration = 3.0  # How long to show achievement (seconds)
     
     def update(self, frog, camera):
         """
@@ -1269,8 +1274,61 @@ class ProgressTracker:
                 self.milestones_reached.add(milestone_height)
                 self.score += self.milestone_bonus
                 new_milestones.append(description)
+                
+                # Trigger achievement notification
+                self.trigger_achievement_notification(description)
         
         return new_milestones
+    
+    def trigger_achievement_notification(self, achievement_text):
+        """
+        Trigger an achievement notification
+        
+        Args:
+            achievement_text (str): Text to display for the achievement
+        """
+        self.active_achievement = achievement_text
+        self.achievement_timer = self.achievement_duration
+    
+    def update_achievement_display(self, dt):
+        """
+        Update achievement display timer
+        
+        Args:
+            dt (float): Delta time in seconds
+        """
+        if self.achievement_timer > 0:
+            self.achievement_timer -= dt
+            if self.achievement_timer <= 0:
+                self.active_achievement = None
+    
+    def has_active_achievement(self):
+        """
+        Check if there's an active achievement notification
+        
+        Returns:
+            bool: True if achievement is being displayed
+        """
+        return self.active_achievement is not None and self.achievement_timer > 0
+    
+    def get_achievement_display_info(self):
+        """
+        Get achievement display information
+        
+        Returns:
+            tuple: (achievement_text, fade_alpha) or None if no active achievement
+        """
+        if not self.has_active_achievement():
+            return None
+        
+        # Calculate fade effect (fade out in last 0.5 seconds)
+        fade_start = 0.5
+        if self.achievement_timer <= fade_start:
+            fade_alpha = self.achievement_timer / fade_start
+        else:
+            fade_alpha = 1.0
+        
+        return (self.active_achievement, fade_alpha)
     
     def get_progress_percentage(self, target_height=10000):
         """
@@ -1349,6 +1407,10 @@ class ProgressTracker:
         self.platforms_landed_on = 0
         self.bounces_performed = 0
         self.harmful_platforms_avoided = 0
+        
+        # Reset achievement notifications
+        self.active_achievement = None
+        self.achievement_timer = 0.0
 
 # Camera Class for scroll management
 class Camera:
@@ -1662,6 +1724,7 @@ def update():
             # Update progress tracking
             if progress_tracker:
                 progress_tracker.update(frog, camera)
+                progress_tracker.update_achievement_display(1/60)  # Assume 60 FPS
             
             # Check if frog has fallen below screen (game over condition)
             if camera.is_frog_below_screen(frog):
@@ -1744,6 +1807,33 @@ def draw():
                                 topleft=(10, 50), fontsize=12, color="yellow")
                 screen.draw.text(f"Created={stats['platforms_created']} Reused={stats['platforms_reused']} Efficiency={stats['reuse_efficiency']:.1f}%", 
                                 topleft=(10, 65), fontsize=12, color="yellow")
+        
+        # Achievement notification display
+        if progress_tracker:
+            achievement_info = progress_tracker.get_achievement_display_info()
+            if achievement_info:
+                achievement_text, fade_alpha = achievement_info
+                
+                # Create achievement display with background
+                achievement_y = HEIGHT // 3
+                
+                # Draw background flash effect
+                flash_alpha = int(255 * fade_alpha * 0.3)  # 30% opacity background
+                flash_color = (255, 255, 255, flash_alpha)  # White flash
+                
+                # Draw achievement background
+                bg_rect = Rect(50, achievement_y - 40, WIDTH - 100, 80)
+                screen.draw.filled_rect(bg_rect, (0, 0, 0, int(128 * fade_alpha)))  # Semi-transparent black
+                screen.draw.rect(bg_rect, (255, 215, 0, int(255 * fade_alpha)), 3)  # Gold border
+                
+                # Draw achievement text
+                text_alpha = int(255 * fade_alpha)
+                screen.draw.text("🏆 ACHIEVEMENT UNLOCKED! 🏆", 
+                                center=(WIDTH//2, achievement_y - 15), 
+                                fontsize=24, color=(255, 215, 0, text_alpha))  # Gold
+                screen.draw.text(achievement_text, 
+                                center=(WIDTH//2, achievement_y + 15), 
+                                fontsize=20, color=(255, 255, 255, text_alpha))  # White
     elif game_state == GameState.GAME_OVER:
         # Game over screen
         screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 
