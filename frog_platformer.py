@@ -1211,15 +1211,15 @@ class ProgressTracker:
         # Milestone tracking
         self.milestones_reached = set()  # Set of milestone heights reached
         self.milestone_heights = {
-            5000: "Platform Novice - First Major Milestone",
-            10000: "Conveyor Master - Unlocked Conveyor Platforms!", 
-            15000: "Destruction Survivor - Unlocked Breakable Platforms!",
-            20000: "Motion Controller - Unlocked Moving Platforms!",
-            25000: "Vertical Voyager - Unlocked Vertical Platforms!",
-            30000: "Bounce Champion - Unlocked Bouncy Platforms!",
-            40000: "Danger Navigator - Unlocked Harmful Platforms!",
-            60000: "Sky Climber - Reached the Clouds",
-            100000: "Legendary Frog - Ultimate Sky Walker"
+            5000: "Basic Froggery - First Major Milestone",
+            10000: "Convey Your Thoughts To Me - Unlocked Conveyor Platforms!", 
+            15000: "THE FORBIDDEN CHEESE? - Unlocked Breakable Platforms!",
+            20000: "Sidestepper - Unlocked Moving Platforms!",
+            25000: "Vertigo Inducing - Unlocked Vertical Platforms!",
+            30000: "BoingBoingBoing - Unlocked Bouncy Platforms!",
+            40000: "Highway To The Danger Zone... - Unlocked Harmful Platforms!",
+            60000: "Hop And A Skip - Reached the Clouds",
+            100000: "Way Of The Ribbit - Ultimate Sky Walker"
         }
         
         # Score multipliers for different achievements

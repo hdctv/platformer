@@ -34,7 +34,7 @@ def test_achievement_notification_trigger():
     
     achievement_text = achievement_info['text']
     slide_progress = achievement_info['slide_progress']
-    assert "Novice" in achievement_text
+    assert "Froggery" in achievement_text
     assert slide_progress > 0.0  # Should be sliding in
     
     print("✅ Achievement notification trigger test passed!")

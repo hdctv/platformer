@@ -141,13 +141,13 @@ def test_next_milestone():
     # Initially, first milestone should be 5000
     next_milestone = tracker.get_next_milestone()
     assert next_milestone[0] == 5000
-    assert "Novice" in next_milestone[1]
+    assert "Froggery" in next_milestone[1]
     
     # After reaching 5000, next should be 10000
     tracker.milestones_reached.add(5000)
     next_milestone = tracker.get_next_milestone()
     assert next_milestone[0] == 10000
-    assert "Master" in next_milestone[1]
+    assert "Convey" in next_milestone[1]
     
     print("✅ Next milestone test passed!")
 

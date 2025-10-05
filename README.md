@@ -68,15 +68,15 @@ The game features **6 different platform types** that are progressively introduc
 
 Unlock achievements as you reach new heights! Each milestone unlocks new platform types and provides bonus points:
 
-- **🎯 Height 5000**: "Platform Novice" - First Major Milestone
-- **🎯 Height 10000**: "Conveyor Master" - **Unlocks Conveyor Platforms!**
-- **🎯 Height 15000**: "Destruction Survivor" - **Unlocks Breakable Platforms!**
-- **🎯 Height 20000**: "Motion Controller" - **Unlocks Moving Platforms!**
-- **🎯 Height 25000**: "Vertical Voyager" - **Unlocks Vertical Platforms!**
-- **🎯 Height 30000**: "Bounce Champion" - **Unlocks Bouncy Platforms!**
-- **🎯 Height 40000**: "Danger Navigator" - **Unlocks Harmful Platforms!**
-- **🎯 Height 60000**: "Sky Climber" - Reached the Clouds
-- **🎯 Height 100000**: "Legendary Frog" - Ultimate Sky Walker!
+- **🎯 Height 5000**: "Basic Froggery" - First Major Milestone
+- **🎯 Height 10000**: "Convey Your Thoughts To Me" - **Unlocks Conveyor Platforms!**
+- **🎯 Height 15000**: "THE FORBIDDEN CHEESE?" - **Unlocks Breakable Platforms!**
+- **🎯 Height 20000**: "Sidestepper" - **Unlocks Moving Platforms!**
+- **🎯 Height 25000**: "Vertigo Inducing" - **Unlocks Vertical Platforms!**
+- **🎯 Height 30000**: "BoingBoingBoing" - **Unlocks Bouncy Platforms!**
+- **🎯 Height 40000**: "Highway To The Danger Zone..." - **Unlocks Harmful Platforms!**
+- **🎯 Height 60000**: "Hop And A Skip" - Reached the Clouds
+- **🎯 Height 100000**: "Way Of The Ribbit" - Ultimate Sky Walker!
 
 **Achievement notifications** appear as subtle side displays with trophy icons and detailed descriptions when unlocked!
 
