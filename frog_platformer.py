@@ -1903,7 +1903,7 @@ def draw():
                     shadow_rect = Rect(current_x - 2, current_y - 2, bg_width, bg_height)
                     screen.draw.filled_rect(shadow_rect, (10, 10, 10))  # Dark shadow
                     screen.draw.filled_rect(bg_rect, (25, 25, 50))  # Dark blue background
-                    screen.draw.rect(bg_rect, (255, 215, 0), 2)  # Gold border
+                    screen.draw.rect(bg_rect, (255, 215, 0))  # Gold border
                     
                     # Draw trophy image or fallback emoji
                     trophy_x = current_x + 10
