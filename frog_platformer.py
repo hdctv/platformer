@@ -43,6 +43,7 @@ class PlatformType(Enum):
     BREAKABLE = "breakable"
     MOVING = "moving"
     VERTICAL = "vertical"
+    BOUNCY = "bouncy"
     HARMFUL = "harmful"
 
 # Platform Class
@@ -180,6 +181,11 @@ class Platform:
             self.move_range = 80  # Pixels to move in each direction
             self.original_y = self.y
             
+        elif self.platform_type == PlatformType.BOUNCY:
+            self.friction = 1.0
+            self.color = 'pink'
+            self.bounce_power = 2.0  # Multiplier for jump height (double normal jump)
+            
         elif self.platform_type == PlatformType.HARMFUL:
             self.friction = 1.0
             self.color = 'red'
@@ -223,8 +229,17 @@ class Platform:
         """
         # Base collision behavior - position frog slightly inside platform for better collision detection
         frog.y = self.y - frog.height//2 + 1
-        frog.vy = 0
-        frog.on_ground = True
+        
+        # Bouncy platforms have special behavior - they don't make frog grounded
+        if self.platform_type == PlatformType.BOUNCY:
+            # Launch frog upward with bounce power
+            normal_jump_velocity = GAME_CONFIG['jump_strength']
+            bounce_velocity = normal_jump_velocity * self.bounce_power
+            frog.vy = bounce_velocity
+            frog.on_ground = False  # Frog should be airborne immediately
+        else:
+            frog.vy = 0
+            frog.on_ground = True
         
         # Type-specific behavior
         if self.platform_type == PlatformType.CONVEYOR:
@@ -485,11 +500,12 @@ class PlatformGenerator:
         
         # Platform type generation settings
         self.type_introduction_heights = {
-            100: [PlatformType.CONVEYOR],
-            200: [PlatformType.BREAKABLE],
-            300: [PlatformType.MOVING],
-            350: [PlatformType.VERTICAL],
-            400: [PlatformType.HARMFUL]
+            1000: [PlatformType.CONVEYOR],
+            2000: [PlatformType.BREAKABLE],
+            3000: [PlatformType.MOVING],
+            3500: [PlatformType.VERTICAL],
+            3750: [PlatformType.BOUNCY],
+            4000: [PlatformType.HARMFUL]
         }
         self.special_platform_chance = 0.3  # 30% chance for special platforms
     

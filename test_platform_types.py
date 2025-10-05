@@ -97,6 +97,23 @@ class TestPlatformTypes(unittest.TestCase):
         # Frog should have moved vertically
         self.assertNotEqual(self.frog.y, initial_frog_y)
     
+    def test_bouncy_platform(self):
+        """Test bouncy platform behavior"""
+        platform = Platform(400, 350, 100, 20, PlatformType.BOUNCY)
+        
+        self.assertEqual(platform.platform_type, PlatformType.BOUNCY)
+        self.assertEqual(platform.get_friction_multiplier(), 1.0)
+        self.assertFalse(platform.is_harmful())
+        self.assertEqual(platform.get_visual_color(), 'pink')
+        
+        # Test bounce effect on frog
+        self.frog.vy = 5  # Falling
+        platform.on_frog_land(self.frog)
+        # Frog should be launched upward (negative velocity)
+        self.assertLess(self.frog.vy, 0)
+        # Frog should not be grounded
+        self.assertFalse(self.frog.on_ground)
+    
     def test_harmful_platform(self):
         """Test harmful platform behavior"""
         platform = Platform(400, 350, 100, 20, PlatformType.HARMFUL)
@@ -158,8 +175,8 @@ class TestPlatformTypes(unittest.TestCase):
         for platform in platforms:
             initial_active = platform.active
             platform.update(0.1)
-            # Normal, conveyor, vertical, and harmful platforms should remain active
-            if platform.platform_type in [PlatformType.NORMAL, PlatformType.CONVEYOR, PlatformType.VERTICAL, PlatformType.HARMFUL]:
+            # Normal, conveyor, vertical, bouncy, and harmful platforms should remain active
+            if platform.platform_type in [PlatformType.NORMAL, PlatformType.CONVEYOR, PlatformType.VERTICAL, PlatformType.BOUNCY, PlatformType.HARMFUL]:
                 self.assertEqual(platform.active, initial_active)
 
 
@@ -173,17 +190,17 @@ class TestPlatformGenerator(unittest.TestCase):
     def test_platform_type_selection(self):
         """Test platform type selection based on progress"""
         # Early game - should only have normal platforms
-        platform_type = self.generator.select_platform_type(50)
+        platform_type = self.generator.select_platform_type(500)
         self.assertEqual(platform_type, PlatformType.NORMAL)
         
         # Mid game - should have access to more types
-        platform_type = self.generator.select_platform_type(250)
+        platform_type = self.generator.select_platform_type(2500)
         self.assertIn(platform_type, [PlatformType.NORMAL, PlatformType.CONVEYOR, PlatformType.BREAKABLE])
         
         # Late game - should have access to all types
         available_types = set()
         for _ in range(50):  # Generate many to test variety
-            platform_type = self.generator.select_platform_type(500)
+            platform_type = self.generator.select_platform_type(5000)
             available_types.add(platform_type)
         
         # Should have at least normal and some special types
@@ -199,30 +216,30 @@ class TestPlatformGenerator(unittest.TestCase):
     
     def test_type_introduction_heights(self):
         """Test that platform types are introduced at correct heights"""
-        # Test that slippery platforms are available after height 100
-        available_at_150 = []
+        # Test that conveyor platforms are available after height 1000
+        available_at_1500 = []
         for _ in range(20):
-            platform_type = self.generator.select_platform_type(150)
-            available_at_150.append(platform_type)
+            platform_type = self.generator.select_platform_type(1500)
+            available_at_1500.append(platform_type)
         
         # Should include conveyor platforms
-        self.assertIn(PlatformType.CONVEYOR, available_at_150)
+        self.assertIn(PlatformType.CONVEYOR, available_at_1500)
         
-        # Test that harmful platforms are only available after height 400
-        available_at_300 = []
+        # Test that harmful platforms are only available after height 4000
+        available_at_3000 = []
         for _ in range(20):
-            platform_type = self.generator.select_platform_type(300)
-            available_at_300.append(platform_type)
+            platform_type = self.generator.select_platform_type(3000)
+            available_at_3000.append(platform_type)
         
         # Should not include harmful platforms yet
-        self.assertNotIn(PlatformType.HARMFUL, available_at_300)
+        self.assertNotIn(PlatformType.HARMFUL, available_at_3000)
     
     def test_special_platform_chance(self):
         """Test that special platforms appear with correct frequency"""
         # Generate many platforms and check distribution
         platform_types = []
         for _ in range(100):
-            platform_type = self.generator.select_platform_type(500)  # High progress
+            platform_type = self.generator.select_platform_type(5000)  # High progress
             platform_types.append(platform_type)
         
         normal_count = platform_types.count(PlatformType.NORMAL)
