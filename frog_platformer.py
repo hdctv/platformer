@@ -27,9 +27,9 @@ GAME_CONFIG = {
     'laser_config': {
         'introduction_height': 50000,  # Lasers appear after 50,000 height
         'warning_duration': 2.0,       # 2 seconds warning phase
-        'firing_duration': 0.3,        # 0.3 seconds laser active
+        'firing_duration': 0.7,        # 0.3 seconds laser active
         'laser_height': 96,            # 3 frog heights (32 * 3)
-        'spawn_chance': 0.15,          # 15% chance per generation cycle
+        'spawn_chance': 0.30,          # 30% chance per generation cycle (doubled for more lasers)
         'warning_oscillation_speed': 8 # Oscillation cycles per second
     }
 }
@@ -650,10 +650,11 @@ class PlatformGenerator:
         """
         Initialize the platform generator
         """
-        # Generation parameters
-        self.min_vertical_gap = 60
-        self.max_vertical_gap = 100
-        self.max_horizontal_reach = 120
+        # Generation parameters (adjusted for wider platforms and better spacing)
+        self.min_vertical_gap = 100  # Increased for better spacing (was 80)
+        self.max_vertical_gap = 140  # Increased but kept under max jump height of 144
+        self.max_horizontal_reach = 220  # Increased from 120 for wider platform spacing
+        self.min_horizontal_distance = 120  # Minimum horizontal distance to force left/right movement
         self.platform_width = 200  # Doubled from 100 for better balance
         self.platform_height = 20
         
@@ -749,10 +750,18 @@ class PlatformGenerator:
                 else:
                     # Fallback: use safer parameters
                     next_y = current_y - self.min_vertical_gap
-                    next_x = current_x + random.randint(-60, 60)  # Conservative range
+                    # Generate horizontal offset with minimum distance requirement
+                    import random
+                    direction = random.choice([-1, 1])
+                    min_offset = self.min_horizontal_distance
+                    max_offset = min(self.max_horizontal_reach, 180)
+                    if min_offset > max_offset:
+                        min_offset = max_offset // 2
+                    offset_magnitude = random.randint(min_offset, max_offset)
+                    next_x = current_x + (direction * offset_magnitude)
             else:
                 # Fallback to original method if no reference platform
-                max_offset = min(self.max_horizontal_reach, 100)
+                max_offset = min(self.max_horizontal_reach, 180)  # Increased from 100
                 horizontal_offset = random.randint(-max_offset, max_offset)
                 next_x = current_x + horizontal_offset
             
@@ -812,6 +821,8 @@ class PlatformGenerator:
             platform = self.inactive_platforms.pop()
             platform.x = x
             platform.y = y
+            platform.width = self.platform_width  # Fix: Update width to standard size
+            platform.height = self.platform_height  # Also update height for consistency
             platform.platform_type = platform_type
             platform.active = True
             platform.initialize_type_properties()  # Reinitialize for new type
@@ -1356,7 +1367,7 @@ class PlatformGenerator:
         import random
         
         # Try to place safety platform at same Y level, offset horizontally
-        safety_distance = 150  # Distance from harmful platform
+        safety_distance = 250  # Distance from harmful platform (increased to prevent touching with 200px wide platforms)
         margin = self.platform_width // 2 + 20
         
         # Try both sides of the harmful platform
@@ -1405,8 +1416,8 @@ class PlatformGenerator:
             return
         
         # Check if we should spawn a laser
-        # Generate lasers every ~400 units of height on average
-        laser_spacing = 400
+        # Generate lasers every ~250 units of height on average (more frequent)
+        laser_spacing = 250
         next_laser_height = self.last_laser_height - laser_spacing
         
         if camera.y <= next_laser_height:
@@ -1907,6 +1918,9 @@ class Camera:
 # Global game state
 game_state = GameState.PLAYING
 
+# Dev teleport tracking (prevents multiple uses per game)
+used_teleports = set()  # Track which teleports have been used
+
 # Global game objects
 frog = None
 platforms = []
@@ -2001,12 +2015,15 @@ def restart_game():
     """
     Restart the game by resetting all game objects and state
     """
-    global game_state, progress_tracker
+    global game_state, progress_tracker, used_teleports
     game_state = GameState.PLAYING
     
     # Reset progress tracker if it exists
     if progress_tracker:
         progress_tracker.reset()
+    
+    # Reset dev teleport usage
+    used_teleports.clear()
     
     init_game()
 
@@ -2014,11 +2031,25 @@ def handle_input():
     """
     Handle player input for frog movement
     """
-    global frog
+    global frog, camera, platform_generator
     
     # Quit game with ESC key
     if keyboard.escape:
         exit()
+    
+    # Dev shortcuts for testing (only in playing state)
+    if game_state == GameState.PLAYING and frog and camera:
+        # Skip to different heights for testing - using letter keys instead of numbers
+        if keyboard.q:  # Skip to 10,000 (conveyor introduction)
+            teleport_to_height(10000)
+        elif keyboard.t:  # Skip to 25,000 (moving platforms)
+            teleport_to_height(25000)
+        elif keyboard.e:  # Skip to 50,000 (laser introduction)
+            teleport_to_height(50000)
+        elif keyboard.r:  # Skip to 75,000 (high laser activity)
+            teleport_to_height(75000)
+        elif keyboard.t:  # Skip to 100,000 (extreme height)
+            teleport_to_height(100000)
     
     if frog:
         # Jump input (space bar or up arrow)
@@ -2033,6 +2064,73 @@ def handle_input():
             horizontal_direction = 1
         
         frog.move_horizontal(horizontal_direction)
+
+def teleport_to_height(target_height):
+    """
+    Dev function to teleport frog to a specific height for testing
+    Can only be used once per height per game session.
+    
+    Args:
+        target_height (int): Target height to teleport to
+    """
+    global frog, camera, platform_generator, progress_tracker, used_teleports
+    
+    if not frog or not camera or not platform_generator:
+        print("⚠️  Cannot teleport: Game objects not initialized")
+        return
+    
+    # Check if this teleport has already been used
+    if target_height in used_teleports:
+        print(f"⚠️  Teleport to {target_height} already used this game! Restart to use again.")
+        return
+    
+    print(f"🚀 DEV: Teleporting to height {target_height}")
+    
+    # Mark this teleport as used
+    used_teleports.add(target_height)
+    
+    # Calculate world Y coordinate (negative because up is negative Y)
+    target_y = -target_height
+    
+    # Move frog to target height
+    frog.x = WIDTH // 2  # Center horizontally
+    frog.y = target_y - 50  # Position frog above the safety platform
+    frog.vy = 0  # Stop falling
+    frog.vx = 0  # Stop horizontal movement
+    frog.on_ground = False
+    
+    # Move camera to target height and update its tracking
+    camera.y = target_y
+    camera.target_y = target_y  # Make sure camera tracking is updated
+    
+    # Update progress tracker to match height
+    if progress_tracker:
+        progress_tracker.max_height_reached = target_height
+        progress_tracker.current_height = target_height
+        
+        # Unlock achievements up to this height
+        for milestone in progress_tracker.milestone_heights:
+            if milestone <= target_height:
+                milestone_key = f"height_{milestone}"
+                if milestone_key not in progress_tracker.milestones_reached:
+                    progress_tracker.milestones_reached.add(milestone_key)
+    
+    # Clear existing platforms and lasers
+    platform_generator.active_platforms.clear()
+    platform_generator.active_lasers.clear()
+    platform_generator.highest_platform_y = target_y
+    platform_generator.last_laser_height = target_y - 1000  # Reset laser generation
+    
+    # Create a safe landing platform BELOW the frog (full screen width like starting platform)
+    landing_platform = Platform(WIDTH // 2, target_y, WIDTH, 20)  # Platform at target height, frog above it
+    platform_generator.active_platforms.append(landing_platform)
+    
+    # Generate platforms above target height
+    platform_generator.generate_platforms_above_camera(camera, target_y - 1000, progress_tracker)
+    
+    print(f"✓ Teleported to height {target_height}! Camera at Y={camera.y}, Frog at Y={frog.y}")
+    print(f"✓ Generated {len(platform_generator.active_platforms)} platforms")
+    print("Use Q/T/E keys to teleport to different heights (10K/25K/50K).")
 
 def update():
     """
@@ -2166,9 +2264,9 @@ def draw():
         screen.draw.text("Use SPACE/UP to jump, ARROW KEYS/WASD to move", 
                         center=(WIDTH//2, HEIGHT - 50), 
                         fontsize=24, color="white")  # Increased from 16
-        screen.draw.text("Press ESC to quit", 
+        screen.draw.text("Press ESC to quit | Dev: Q/W/E/R/T keys to skip heights", 
                         center=(WIDTH//2, HEIGHT - 30), 
-                        fontsize=24, color="white")  # Increased from 16
+                        fontsize=20, color="lightgray")  # Dev info in smaller, lighter text
         
         # Debug info (enhanced with camera information)
         if frog and camera:

@@ -52,7 +52,7 @@ def test_safety_platform_generation():
         
         # Verify safety platform is reasonably positioned
         assert distance >= 100, f"Safety platform too close: {distance}"
-        assert distance <= 200, f"Safety platform too far: {distance}"
+        assert distance <= 300, f"Safety platform too far: {distance}"  # Updated for increased safety distance
         assert y_diff <= 50, f"Safety platform Y difference too large: {y_diff}"
         
         print("✅ Safety platform positioned correctly!")
@@ -74,10 +74,10 @@ def test_safety_platform_integration():
     
     # Override platform type selection to force harmful platforms
     original_select = generator.select_platform_type
-    def force_harmful(height_progress):
+    def force_harmful(height_progress, progress_tracker=None):
         if height_progress >= 400:  # When harmful platforms are available
             return PlatformType.HARMFUL
-        return original_select(height_progress)
+        return original_select(height_progress, progress_tracker)
     
     generator.select_platform_type = force_harmful
     
