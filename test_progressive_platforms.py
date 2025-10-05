@@ -34,7 +34,7 @@ def test_progressive_special_platform_increase():
     print("\nTesting progressive special platform increase...")
     
     # Test at different heights with progress tracker
-    heights = [1000, 3000, 5000, 8000]
+    heights = [5000, 15000, 25000, 50000]
     special_percentages = []
     
     for height in heights:
@@ -72,7 +72,7 @@ def test_weighted_platform_selection():
     progress_tracker.current_height = 5000
     
     # Simulate milestones
-    for milestone in [1000, 2000, 3000, 3500, 3750, 4000]:
+    for milestone in [5000, 10000, 15000, 20000, 25000]:
         progress_tracker.milestones_reached.add(milestone)
     
     print("\nTesting weighted platform selection...")
@@ -103,7 +103,7 @@ def test_anti_clustering():
     """Test that anti-clustering prevents too many similar platforms"""
     generator = PlatformGenerator()
     progress_tracker = ProgressTracker()
-    progress_tracker.current_height = 4000
+    progress_tracker.current_height = 25000
     
     print("\nTesting anti-clustering mechanism...")
     
@@ -115,7 +115,7 @@ def test_anti_clustering():
     # Generate new platforms - should avoid conveyor due to clustering
     platform_types = []
     for _ in range(50):
-        platform_type = generator.select_platform_type(4000, progress_tracker)
+        platform_type = generator.select_platform_type(25000, progress_tracker)
         platform_types.append(platform_type)
     
     conveyor_count = platform_types.count(PlatformType.CONVEYOR)
@@ -138,23 +138,23 @@ def test_milestone_bonus_effect():
     
     # Test without milestones
     progress_tracker_no_milestones = ProgressTracker()
-    progress_tracker_no_milestones.current_height = 3000
+    progress_tracker_no_milestones.current_height = 15000
     
     platform_types_no_bonus = []
     for _ in range(100):
-        platform_type = generator.select_platform_type(3000, progress_tracker_no_milestones)
+        platform_type = generator.select_platform_type(15000, progress_tracker_no_milestones)
         platform_types_no_bonus.append(platform_type)
     
     special_count_no_bonus = len([t for t in platform_types_no_bonus if t != PlatformType.NORMAL])
     
     # Test with milestones
     progress_tracker_with_milestones = ProgressTracker()
-    progress_tracker_with_milestones.current_height = 3000
-    progress_tracker_with_milestones.milestones_reached = {1000, 2000, 3000}
+    progress_tracker_with_milestones.current_height = 15000
+    progress_tracker_with_milestones.milestones_reached = {5000, 10000, 15000}
     
     platform_types_with_bonus = []
     for _ in range(100):
-        platform_type = generator.select_platform_type(3000, progress_tracker_with_milestones)
+        platform_type = generator.select_platform_type(15000, progress_tracker_with_milestones)
         platform_types_with_bonus.append(platform_type)
     
     special_count_with_bonus = len([t for t in platform_types_with_bonus if t != PlatformType.NORMAL])
@@ -175,30 +175,30 @@ def test_difficulty_progression():
     
     # Test at low height
     progress_tracker_low = ProgressTracker()
-    progress_tracker_low.current_height = 2000
-    progress_tracker_low.milestones_reached = {1000, 2000}
+    progress_tracker_low.current_height = 12000
+    progress_tracker_low.milestones_reached = {5000, 10000}
     
     difficult_platforms_low = []
     for _ in range(200):
-        platform_type = generator.select_platform_type(2000, progress_tracker_low)
+        platform_type = generator.select_platform_type(12000, progress_tracker_low)
         if platform_type in [PlatformType.MOVING, PlatformType.VERTICAL, PlatformType.BOUNCY, PlatformType.HARMFUL]:
             difficult_platforms_low.append(platform_type)
     
     # Test at high height
     progress_tracker_high = ProgressTracker()
-    progress_tracker_high.current_height = 8000
+    progress_tracker_high.current_height = 50000
     for milestone in progress_tracker_high.milestone_heights:
-        if milestone <= 8000:
+        if milestone <= 50000:
             progress_tracker_high.milestones_reached.add(milestone)
     
     difficult_platforms_high = []
     for _ in range(200):
-        platform_type = generator.select_platform_type(8000, progress_tracker_high)
+        platform_type = generator.select_platform_type(50000, progress_tracker_high)
         if platform_type in [PlatformType.MOVING, PlatformType.VERTICAL, PlatformType.BOUNCY, PlatformType.HARMFUL]:
             difficult_platforms_high.append(platform_type)
     
-    print(f"Difficult platforms at height 2000: {len(difficult_platforms_low)}")
-    print(f"Difficult platforms at height 8000: {len(difficult_platforms_high)}")
+    print(f"Difficult platforms at height 12000: {len(difficult_platforms_low)}")
+    print(f"Difficult platforms at height 50000: {len(difficult_platforms_high)}")
     
     # Should have more difficult platforms at higher heights
     assert len(difficult_platforms_high) >= len(difficult_platforms_low), "Difficult platforms should increase with height"
@@ -213,7 +213,7 @@ def demo_progressive_platform_system():
     
     generator = PlatformGenerator()
     
-    heights = [500, 1500, 3000, 5000, 7500, 10000]
+    heights = [2000, 12000, 18000, 28000, 35000, 50000]
     
     for height in heights:
         print(f"\n📍 Height: {height}")

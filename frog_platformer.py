@@ -505,12 +505,12 @@ class PlatformGenerator:
         
         # Platform type generation settings
         self.type_introduction_heights = {
-            1000: [PlatformType.CONVEYOR],
-            2000: [PlatformType.BREAKABLE],
-            3000: [PlatformType.MOVING],
-            3500: [PlatformType.VERTICAL],
-            3750: [PlatformType.BOUNCY],
-            4000: [PlatformType.HARMFUL]
+            10000: [PlatformType.CONVEYOR],     # "Conveyor Master" achievement
+            15000: [PlatformType.BREAKABLE],    # "Destruction Survivor" achievement
+            20000: [PlatformType.MOVING],       # "Motion Controller" achievement
+            25000: [PlatformType.VERTICAL],     # "Vertical Voyager" achievement
+            30000: [PlatformType.BOUNCY],       # "Bounce Champion" achievement
+            40000: [PlatformType.HARMFUL]       # "Danger Navigator" achievement
         }
         self.special_platform_chance = 0.2  # 20% chance for special platforms (reduced from 30%)
     
@@ -1212,12 +1212,12 @@ class ProgressTracker:
         self.milestones_reached = set()  # Set of milestone heights reached
         self.milestone_heights = {
             5000: "Platform Novice - First Major Milestone",
-            10000: "Conveyor Master - Mastered Sideways Movement", 
-            15000: "Destruction Survivor - Breakable Platform Expert",
-            20000: "Motion Controller - Moving Platform Specialist",
-            25000: "Vertical Voyager - Elevator Platform Pro",
-            30000: "Bounce Champion - Bouncy Platform Master",
-            40000: "Danger Navigator - Harmful Platform Survivor",
+            10000: "Conveyor Master - Unlocked Conveyor Platforms!", 
+            15000: "Destruction Survivor - Unlocked Breakable Platforms!",
+            20000: "Motion Controller - Unlocked Moving Platforms!",
+            25000: "Vertical Voyager - Unlocked Vertical Platforms!",
+            30000: "Bounce Champion - Unlocked Bouncy Platforms!",
+            40000: "Danger Navigator - Unlocked Harmful Platforms!",
             60000: "Sky Climber - Reached the Clouds",
             100000: "Legendary Frog - Ultimate Sky Walker"
         }

@@ -24,41 +24,41 @@ The game features **6 different platform types** that are progressively introduc
 - **Behavior**: Solid, reliable platforms you can stand on
 - **Strategy**: Your safe havens - use them to plan your next moves
 
-### 🔄 Conveyor Platforms (Height 1000+)
-- **Introduced**: Height 1000
+### 🔄 Conveyor Platforms (Height 10000+)
+- **Introduced**: Height 10000 (Conveyor Master achievement)
 - **Color**: Gray
 - **Behavior**: Push you sideways while you're on them
 - **Direction**: Alternates left/right based on position
 - **Speed**: 1.2 pixels/frame (balanced for gameplay)
 - **Strategy**: Use the push to reach distant platforms, but be careful not to get pushed off edges!
 
-### 🧡 Breakable Platforms (Height 2000+)
-- **Introduced**: Height 2000
+### 🧡 Breakable Platforms (Height 15000+)
+- **Introduced**: Height 15000 (Destruction Survivor achievement)
 - **Color**: Orange (flashes when about to break)
 - **Behavior**: Break after 1 second when stepped on
 - **Strategy**: Quick thinking required - don't linger!
 
-### 🟣 Moving Platforms (Height 3000+)
-- **Introduced**: Height 3000
+### 🟣 Moving Platforms (Height 20000+)
+- **Introduced**: Height 20000 (Motion Controller achievement)
 - **Color**: Purple
 - **Behavior**: Move horizontally back and forth
 - **Strategy**: Time your jumps and ride them to new areas
 
-### 🔵 Vertical Platforms (Height 3500+)
-- **Introduced**: Height 3500
+### 🔵 Vertical Platforms (Height 25000+)
+- **Introduced**: Height 25000 (Vertical Voyager achievement)
 - **Color**: Cyan
 - **Behavior**: Move up and down, carrying you with them
 - **Strategy**: Use them as elevators to reach higher areas quickly
 
-### 🩷 Bouncy Platforms (Height 3750+)
-- **Introduced**: Height 3750
+### 🩷 Bouncy Platforms (Height 30000+)
+- **Introduced**: Height 30000 (Bounce Champion achievement)
 - **Color**: Pink
 - **Behavior**: Launch you upward with **double jump height**
 - **Risk/Reward**: Can't stand still - immediately become airborne
 - **Strategy**: High-risk, high-reward - can skip sections but less control
 
-### 🔴 Harmful Platforms (Height 4000+)
-- **Introduced**: Height 4000
+### 🔴 Harmful Platforms (Height 40000+)
+- **Introduced**: Height 40000 (Danger Navigator achievement)
 - **Color**: Red
 - **Behavior**: **Game over** on contact!
 - **Frequency**: Becomes more common at very high heights
@@ -69,12 +69,12 @@ The game features **6 different platform types** that are progressively introduc
 Unlock achievements as you reach new heights! Each milestone unlocks new platform types and provides bonus points:
 
 - **🎯 Height 5000**: "Platform Novice" - First Major Milestone
-- **🎯 Height 10000**: "Conveyor Master" - Mastered Sideways Movement
-- **🎯 Height 15000**: "Destruction Survivor" - Breakable Platform Expert
-- **🎯 Height 20000**: "Motion Controller" - Moving Platform Specialist
-- **🎯 Height 25000**: "Vertical Voyager" - Elevator Platform Pro
-- **🎯 Height 30000**: "Bounce Champion" - Bouncy Platform Master
-- **🎯 Height 40000**: "Danger Navigator" - Harmful Platform Survivor
+- **🎯 Height 10000**: "Conveyor Master" - **Unlocks Conveyor Platforms!**
+- **🎯 Height 15000**: "Destruction Survivor" - **Unlocks Breakable Platforms!**
+- **🎯 Height 20000**: "Motion Controller" - **Unlocks Moving Platforms!**
+- **🎯 Height 25000**: "Vertical Voyager" - **Unlocks Vertical Platforms!**
+- **🎯 Height 30000**: "Bounce Champion" - **Unlocks Bouncy Platforms!**
+- **🎯 Height 40000**: "Danger Navigator" - **Unlocks Harmful Platforms!**
 - **🎯 Height 60000**: "Sky Climber" - Reached the Clouds
 - **🎯 Height 100000**: "Legendary Frog" - Ultimate Sky Walker!
 
