@@ -359,6 +359,7 @@ class Frog:
         self.on_conveyor = False
         self.conveyor_platform = None
         self.touched_harmful_platform = False
+        self.last_platform_landed = None  # For progress tracking
         
         # Load frog sprite
         import pygame
@@ -451,6 +452,10 @@ class Frog:
         for platform in platforms:
             if platform.check_collision(self):
                 platform.on_collision(self)
+                
+                # Set a flag for progress tracking (will be handled in main update loop)
+                self.last_platform_landed = platform.platform_type
+                
                 break  # Only land on one platform at a time
 
 # Platform Generator Class
@@ -1058,6 +1063,162 @@ class PlatformGenerator:
                         self.active_platforms.append(safety_platform)
                         return  # Successfully added safety platform
 
+# Progress Tracking System
+class ProgressTracker:
+    """
+    Tracks player progress and manages milestone-based features
+    """
+    def __init__(self):
+        """
+        Initialize progress tracking system
+        """
+        # Progress metrics
+        self.current_height = 0.0  # Current height achieved (negative Y coordinate)
+        self.max_height_reached = 0.0  # Maximum height ever reached
+        self.score = 0  # Score based on height progression
+        
+        # Milestone tracking
+        self.milestones_reached = set()  # Set of milestone heights reached
+        self.milestone_heights = {
+            1000: "First Conveyor Platforms",
+            2000: "Breakable Platforms Introduced", 
+            3000: "Moving Platforms Appear",
+            3500: "Vertical Platforms Added",
+            3750: "Bouncy Platforms Available",
+            4000: "Harmful Platforms - Danger Zone!",
+            5000: "Master Climber",
+            7500: "Platform Expert", 
+            10000: "Sky Walker"
+        }
+        
+        # Score multipliers for different achievements
+        self.height_score_multiplier = 1.0  # Points per unit height
+        self.milestone_bonus = 100  # Bonus points for reaching milestones
+        
+        # Statistics
+        self.platforms_landed_on = 0
+        self.bounces_performed = 0
+        self.harmful_platforms_avoided = 0
+    
+    def update(self, frog, camera):
+        """
+        Update progress tracking based on current game state
+        
+        Args:
+            frog (Frog): Current frog object
+            camera (Camera): Current camera object
+        """
+        # Calculate current height (negative Y means higher up)
+        # Use camera position as reference since it follows the frog upward
+        self.current_height = abs(camera.y)  # Convert to positive height value
+        
+        # Update maximum height reached
+        if self.current_height > self.max_height_reached:
+            self.max_height_reached = self.current_height
+            
+        # Update score based on height progression
+        self.score = int(self.current_height * self.height_score_multiplier)
+        
+        # Check for new milestones
+        self.check_milestones()
+    
+    def check_milestones(self):
+        """
+        Check if any new milestones have been reached
+        
+        Returns:
+            list: List of newly reached milestone descriptions
+        """
+        new_milestones = []
+        
+        for milestone_height, description in self.milestone_heights.items():
+            if (self.current_height >= milestone_height and 
+                milestone_height not in self.milestones_reached):
+                
+                self.milestones_reached.add(milestone_height)
+                self.score += self.milestone_bonus
+                new_milestones.append(description)
+        
+        return new_milestones
+    
+    def get_progress_percentage(self, target_height=10000):
+        """
+        Get progress as percentage toward target height
+        
+        Args:
+            target_height (float): Target height for 100% progress
+            
+        Returns:
+            float: Progress percentage (0.0 to 100.0)
+        """
+        return min(100.0, (self.current_height / target_height) * 100.0)
+    
+    def get_next_milestone(self):
+        """
+        Get information about the next milestone to reach
+        
+        Returns:
+            tuple: (height, description) of next milestone, or None if all reached
+        """
+        for milestone_height in sorted(self.milestone_heights.keys()):
+            if milestone_height not in self.milestones_reached:
+                return (milestone_height, self.milestone_heights[milestone_height])
+        return None
+    
+    def record_platform_landing(self, platform_type):
+        """
+        Record that frog landed on a platform
+        
+        Args:
+            platform_type (PlatformType): Type of platform landed on
+        """
+        self.platforms_landed_on += 1
+        
+        # Track specific platform interactions
+        if platform_type == PlatformType.BOUNCY:
+            self.bounces_performed += 1
+        elif platform_type == PlatformType.HARMFUL:
+            # This shouldn't happen (game over), but track for completeness
+            pass
+    
+    def record_harmful_platform_avoided(self):
+        """
+        Record that a harmful platform was successfully avoided
+        """
+        self.harmful_platforms_avoided += 1
+        self.score += 50  # Bonus for avoiding danger
+    
+    def get_statistics(self):
+        """
+        Get comprehensive progress statistics
+        
+        Returns:
+            dict: Dictionary containing all progress statistics
+        """
+        return {
+            'current_height': self.current_height,
+            'max_height_reached': self.max_height_reached,
+            'score': self.score,
+            'milestones_reached': len(self.milestones_reached),
+            'total_milestones': len(self.milestone_heights),
+            'platforms_landed_on': self.platforms_landed_on,
+            'bounces_performed': self.bounces_performed,
+            'harmful_platforms_avoided': self.harmful_platforms_avoided,
+            'progress_percentage': self.get_progress_percentage()
+        }
+    
+    def reset(self):
+        """
+        Reset progress tracking for new game
+        """
+        self.current_height = 0.0
+        self.max_height_reached = 0.0
+        self.score = 0
+        self.milestones_reached.clear()
+        self.platforms_landed_on = 0
+        self.bounces_performed = 0
+        self.harmful_platforms_avoided = 0
+
 # Camera Class for scroll management
 class Camera:
     """
@@ -1211,6 +1372,7 @@ frog = None
 platforms = []
 camera = None
 platform_generator = None
+progress_tracker = None
 
 def generate_reachable_platforms(start_x, start_y, count=20):
     """
@@ -1271,12 +1433,15 @@ def init_game():
     """
     Initialize the game objects
     """
-    global frog, platforms, camera, platform_generator
+    global frog, platforms, camera, platform_generator, progress_tracker
     # Initialize camera system
     camera = Camera()
     
     # Initialize platform generator
     platform_generator = PlatformGenerator()
+    
+    # Initialize progress tracker
+    progress_tracker = ProgressTracker()
     
     # Start the frog in the center-bottom of the screen
     frog = Frog(WIDTH // 2, HEIGHT - 100)
@@ -1296,8 +1461,13 @@ def restart_game():
     """
     Restart the game by resetting all game objects and state
     """
-    global game_state
+    global game_state, progress_tracker
     game_state = GameState.PLAYING
+    
+    # Reset progress tracker if it exists
+    if progress_tracker:
+        progress_tracker.reset()
+    
     init_game()
 
 def handle_input():
@@ -1345,6 +1515,11 @@ def update():
             # Check platform collisions after frog physics update
             frog.check_platform_collision(platforms)
             
+            # Record platform landing for progress tracking
+            if frog.last_platform_landed and progress_tracker:
+                progress_tracker.record_platform_landing(frog.last_platform_landed)
+                frog.last_platform_landed = None  # Reset after recording
+            
             # Check if frog touched a harmful platform
             if frog.touched_harmful_platform:
                 game_state = GameState.GAME_OVER
@@ -1352,6 +1527,10 @@ def update():
         # Update camera to follow frog
         if camera and frog:
             camera.update(frog)
+            
+            # Update progress tracking
+            if progress_tracker:
+                progress_tracker.update(frog, camera)
             
             # Check if frog has fallen below screen (game over condition)
             if camera.is_frog_below_screen(frog):

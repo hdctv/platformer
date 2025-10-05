@@ -105,7 +105,7 @@
     - _Requirements: 4.5_
 
 - [ ] 7. Add progress-based platform type introduction
-  - [ ] 7.1 Create progress tracking system
+  - [x] 7.1 Create progress tracking system
     - Track player height/score based on camera position
     - Define milestone heights for introducing new platform types
     - _Requirements: 4.1, 4.6_
