@@ -514,13 +514,14 @@ class PlatformGenerator:
         }
         self.special_platform_chance = 0.3  # 30% chance for special platforms
     
-    def generate_platforms_above_camera(self, camera, target_height):
+    def generate_platforms_above_camera(self, camera, target_height, progress_tracker=None):
         """
         Generate platforms above the camera up to target height
         
         Args:
             camera (Camera): Camera object to determine generation area
             target_height (float): Generate platforms up to this Y coordinate
+            progress_tracker (ProgressTracker): Progress tracker for advanced generation (optional)
         """
         import random
         
@@ -582,7 +583,7 @@ class PlatformGenerator:
             
             # Select platform type based on progress
             height_progress = abs(next_y)  # Use absolute Y as progress measure
-            platform_type = self.select_platform_type(height_progress)
+            platform_type = self.select_platform_type(height_progress, progress_tracker)
             
             # Create or reuse platform
             platform = self.create_platform(next_x, next_y, platform_type)
@@ -633,19 +634,20 @@ class PlatformGenerator:
         
         return platform
     
-    def update(self, camera):
+    def update(self, camera, progress_tracker=None):
         """
         Update platform generation based on camera position
         
         Args:
             camera (Camera): Camera object to track position
+            progress_tracker (ProgressTracker): Progress tracker for advanced generation (optional)
         """
         # Generate platforms ahead of camera
         target_height = camera.y - self.generation_buffer
         
         # Only generate if we need more platforms above
         if self.highest_platform_y > target_height:
-            self.generate_platforms_above_camera(camera, target_height)
+            self.generate_platforms_above_camera(camera, target_height, progress_tracker)
             
             # Periodically validate and fix layout issues
             if len(self.active_platforms) % 10 == 0:  # Check every 10 platforms
@@ -991,12 +993,13 @@ class PlatformGenerator:
                     new_platform = self.create_platform(x, y)
                     self.active_platforms.append(new_platform)
     
-    def select_platform_type(self, height_progress):
+    def select_platform_type(self, height_progress, progress_tracker=None):
         """
-        Select platform type based on game progress
+        Select platform type based on game progress with progressive introduction
         
         Args:
             height_progress (float): Current height/progress in the game
+            progress_tracker (ProgressTracker): Progress tracker for advanced logic (optional)
             
         Returns:
             PlatformType: Selected platform type
@@ -1010,14 +1013,142 @@ class PlatformGenerator:
             if height_progress >= height_threshold:
                 available_types.extend(new_types)
         
+        # Progressive difficulty: increase special platform chance with height
+        base_special_chance = self.special_platform_chance
+        
+        # Calculate progressive multiplier (increases with height)
+        progress_multiplier = 1.0 + (height_progress / 10000.0)  # +100% at height 10000
+        progressive_chance = min(0.7, base_special_chance * progress_multiplier)  # Cap at 70%
+        
+        # Milestone bonus: increase chance after reaching milestones
+        milestone_bonus = 0.0
+        if progress_tracker and len(progress_tracker.milestones_reached) > 0:
+            milestone_bonus = len(progress_tracker.milestones_reached) * 0.05  # +5% per milestone
+        
+        total_special_chance = min(0.8, progressive_chance + milestone_bonus)  # Cap at 80%
+        
         # Decide whether to use special platform
-        if len(available_types) > 1 and random.random() < self.special_platform_chance:
-            # Choose a special platform type (not normal)
-            special_types = [t for t in available_types if t != PlatformType.NORMAL]
-            return random.choice(special_types)
+        if len(available_types) > 1 and random.random() < total_special_chance:
+            # Choose special platform with weighted probabilities
+            return self._select_weighted_special_platform(available_types, height_progress)
         else:
             # Use normal platform
             return PlatformType.NORMAL
+    
+    def _select_weighted_special_platform(self, available_types, height_progress):
+        """
+        Select a special platform type using weighted probabilities
+        
+        Args:
+            available_types (list): List of available platform types
+            height_progress (float): Current height progress
+            
+        Returns:
+            PlatformType: Selected special platform type
+        """
+        import random
+        
+        # Remove normal type from consideration
+        special_types = [t for t in available_types if t != PlatformType.NORMAL]
+        
+        if not special_types:
+            return PlatformType.NORMAL
+        
+        # Define base weights for each platform type
+        base_weights = {
+            PlatformType.CONVEYOR: 3.0,    # Common, helpful
+            PlatformType.BREAKABLE: 2.5,   # Moderate challenge
+            PlatformType.MOVING: 2.0,      # Moderate challenge
+            PlatformType.VERTICAL: 1.5,    # More challenging
+            PlatformType.BOUNCY: 1.0,      # High risk/reward
+            PlatformType.HARMFUL: 0.5      # Rare, dangerous
+        }
+        
+        # Adjust weights based on progress
+        adjusted_weights = {}
+        for platform_type in special_types:
+            base_weight = base_weights.get(platform_type, 1.0)
+            
+            # Increase difficulty platform weights with progress
+            if platform_type in [PlatformType.MOVING, PlatformType.VERTICAL, PlatformType.BOUNCY]:
+                difficulty_multiplier = 1.0 + (height_progress / 5000.0)  # Double weight at 5000
+                adjusted_weights[platform_type] = base_weight * difficulty_multiplier
+            elif platform_type == PlatformType.HARMFUL:
+                # Harmful platforms become more common at very high heights
+                if height_progress > 6000:
+                    danger_multiplier = 1.0 + ((height_progress - 6000) / 4000.0)  # Increase after 6000
+                    adjusted_weights[platform_type] = base_weight * danger_multiplier
+                else:
+                    adjusted_weights[platform_type] = base_weight
+            else:
+                adjusted_weights[platform_type] = base_weight
+        
+        # Prevent clustering of same platform types
+        adjusted_weights = self._apply_anti_clustering(adjusted_weights)
+        
+        # Select platform using weighted random choice
+        return self._weighted_random_choice(adjusted_weights)
+    
+    def _apply_anti_clustering(self, weights):
+        """
+        Reduce weights for platform types that were recently used
+        
+        Args:
+            weights (dict): Current platform type weights
+            
+        Returns:
+            dict: Adjusted weights to prevent clustering
+        """
+        # Check recent platform history (last 5 platforms)
+        recent_platforms = []
+        if len(self.active_platforms) >= 5:
+            recent_platforms = [p.platform_type for p in self.active_platforms[-5:]]
+        
+        adjusted_weights = weights.copy()
+        
+        # Reduce weight for recently used platform types
+        for platform_type in weights:
+            recent_count = recent_platforms.count(platform_type)
+            if recent_count > 0:
+                # Reduce weight by 50% for each recent occurrence
+                reduction_factor = 0.5 ** recent_count
+                adjusted_weights[platform_type] *= reduction_factor
+        
+        return adjusted_weights
+    
+    def _weighted_random_choice(self, weights):
+        """
+        Select a random item based on weights
+        
+        Args:
+            weights (dict): Dictionary of items and their weights
+            
+        Returns:
+            Any: Selected item
+        """
+        import random
+        
+        if not weights:
+            return PlatformType.NORMAL
+        
+        # Calculate total weight
+        total_weight = sum(weights.values())
+        
+        if total_weight <= 0:
+            return random.choice(list(weights.keys()))
+        
+        # Select random value within total weight
+        random_value = random.uniform(0, total_weight)
+        
+        # Find the selected item
+        current_weight = 0
+        for item, weight in weights.items():
+            current_weight += weight
+            if random_value <= current_weight:
+                return item
+        
+        # Fallback (shouldn't reach here)
+        return list(weights.keys())[-1]
     
     def add_safety_platform_for_harmful(self, harmful_x, harmful_y):
         """
@@ -1452,7 +1583,7 @@ def init_game():
     platform_generator.highest_platform_y = HEIGHT - 50
     
     # Generate initial set of platforms
-    platform_generator.generate_platforms_above_camera(camera, camera.y - 1000)
+    platform_generator.generate_platforms_above_camera(camera, camera.y - 1000, progress_tracker)
     
     # Get platforms from generator
     platforms = platform_generator.get_active_platforms()
@@ -1538,7 +1669,7 @@ def update():
         
         # Update platform generator
         if platform_generator and camera:
-            platform_generator.update(camera)
+            platform_generator.update(camera, progress_tracker)
             platform_generator.cleanup_platforms_below_camera(camera)
             # Update platforms list from generator
             platforms[:] = platform_generator.get_active_platforms()

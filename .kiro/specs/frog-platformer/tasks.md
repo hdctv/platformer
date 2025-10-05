@@ -110,7 +110,7 @@
     - Define milestone heights for introducing new platform types
     - _Requirements: 4.1, 4.6_
   
-  - [ ] 7.2 Implement progressive platform type introduction
+  - [x] 7.2 Implement progressive platform type introduction
     - Modify platform generator to introduce types based on progress
     - Gradually increase frequency of special platform types
     - _Requirements: 4.6_
