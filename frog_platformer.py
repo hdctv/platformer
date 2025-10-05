@@ -121,6 +121,13 @@ class Platform:
         # This prevents frog from landing when jumping up through platform
         if frog.vy > 0 and frog.y - frog.height//2 <= self.y + self.height:
             return True
+        
+        # Special case for conveyor platforms: maintain contact even when not falling
+        # This allows continuous conveyor effect while frog is on the platform
+        if (self.platform_type == PlatformType.CONVEYOR and 
+            frog.vy >= 0 and  # Not jumping up
+            abs(frog.y - frog.height//2 - self.y) <= 5):  # Close to platform surface
+            return True
             
         return False
     
@@ -204,8 +211,8 @@ class Platform:
         Args:
             frog (Frog): The frog that landed on the platform
         """
-        # Base collision behavior
-        frog.y = self.y - frog.height//2
+        # Base collision behavior - position frog slightly inside platform for better collision detection
+        frog.y = self.y - frog.height//2 + 1
         frog.vy = 0
         frog.on_ground = True
         

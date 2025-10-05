@@ -265,7 +265,7 @@ class TestPlatformInteractions(unittest.TestCase):
             # All platforms should stop frog's fall
             self.assertEqual(self.frog.vy, 0)
             self.assertTrue(self.frog.on_ground)
-            self.assertEqual(self.frog.y, platform.y - self.frog.height//2)
+            self.assertEqual(self.frog.y, platform.y - self.frog.height//2 + 1)
     
     def test_conveyor_platform_movement_effect(self):
         """Test that conveyor platforms add sideways movement to frog"""
