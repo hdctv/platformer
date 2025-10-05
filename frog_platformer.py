@@ -1262,9 +1262,13 @@ class ProgressTracker:
                 return
             
             # Load the trophy image
-            self.trophy_image = pygame.image.load('trophy.png').convert()
+            original_image = pygame.image.load('trophy.png').convert()
             # Set white (255, 255, 255) as the transparent color
-            self.trophy_image.set_colorkey((255, 255, 255))
+            original_image.set_colorkey((255, 255, 255))
+            
+            # Scale the trophy to a nice size (32x32 pixels)
+            trophy_size = (32, 32)
+            self.trophy_image = pygame.transform.scale(original_image, trophy_size)
             self.trophy_loaded = True
         except Exception as e:
             print(f"Warning: Could not load trophy.png: {e}")
@@ -1910,9 +1914,9 @@ def draw():
                     trophy_y = current_y + 10
                     
                     if trophy_image:
-                        # Draw the actual trophy.png image
+                        # Draw the actual trophy.png image (scaled to 32x32)
                         screen.blit(trophy_image, (trophy_x, trophy_y))
-                        text_start_x = trophy_x + 50  # Adjust based on trophy image width
+                        text_start_x = trophy_x + 40  # 32px trophy + 8px spacing
                     else:
                         # Fallback to emoji if image failed to load
                         screen.draw.text("🏆", 
