@@ -21,7 +21,7 @@ def test_achievement_notification_trigger():
     assert tracker.get_achievement_display_info() is None
     
     # Reach first milestone
-    camera.y = -1000
+    camera.y = -5000
     tracker.update(frog, camera)
     
     # Should have active achievement
@@ -30,7 +30,7 @@ def test_achievement_notification_trigger():
     assert achievement_info is not None
     
     achievement_text, fade_alpha = achievement_info
-    assert "Conveyor" in achievement_text
+    assert "Novice" in achievement_text
     assert fade_alpha == 1.0  # Should be fully visible initially
     
     print("✅ Achievement notification trigger test passed!")
@@ -83,17 +83,17 @@ def test_multiple_achievements():
     print("\nTesting multiple achievements...")
     
     # Reach multiple milestones at once
-    camera.y = -3000
+    camera.y = -15000
     tracker.update(frog, camera)
     
     # Should have active achievement (latest one)
     assert tracker.has_active_achievement()
     
     # Should have reached multiple milestones
-    assert len(tracker.milestones_reached) >= 3
-    assert 1000 in tracker.milestones_reached
-    assert 2000 in tracker.milestones_reached
-    assert 3000 in tracker.milestones_reached
+    assert len(tracker.milestones_reached) >= 2
+    assert 5000 in tracker.milestones_reached
+    assert 10000 in tracker.milestones_reached
+    assert 15000 in tracker.milestones_reached
     
     print("✅ Multiple achievements test passed!")
 
@@ -145,7 +145,7 @@ def demo_achievement_system():
     frog = Frog(400, 300)
     
     # Simulate reaching different heights
-    heights = [1000, 2000, 3500, 5000, 10000]
+    heights = [5000, 10000, 15000, 25000, 40000]
     
     for height in heights:
         print(f"\n📍 Reaching height: {height}")

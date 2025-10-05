@@ -1211,15 +1211,15 @@ class ProgressTracker:
         # Milestone tracking
         self.milestones_reached = set()  # Set of milestone heights reached
         self.milestone_heights = {
-            1000: "First Conveyor Platforms",
-            2000: "Breakable Platforms Introduced", 
-            3000: "Moving Platforms Appear",
-            3500: "Vertical Platforms Added",
-            3750: "Bouncy Platforms Available",
-            4000: "Harmful Platforms - Danger Zone!",
-            5000: "Master Climber",
-            7500: "Platform Expert", 
-            10000: "Sky Walker"
+            5000: "Platform Novice - First Major Milestone",
+            10000: "Conveyor Master - Mastered Sideways Movement", 
+            15000: "Destruction Survivor - Breakable Platform Expert",
+            20000: "Motion Controller - Moving Platform Specialist",
+            25000: "Vertical Voyager - Elevator Platform Pro",
+            30000: "Bounce Champion - Bouncy Platform Master",
+            40000: "Danger Navigator - Harmful Platform Survivor",
+            60000: "Sky Climber - Reached the Clouds",
+            100000: "Legendary Frog - Ultimate Sky Walker"
         }
         
         # Score multipliers for different achievements
@@ -1808,29 +1808,35 @@ def draw():
                 screen.draw.text(f"Created={stats['platforms_created']} Reused={stats['platforms_reused']} Efficiency={stats['reuse_efficiency']:.1f}%", 
                                 topleft=(10, 65), fontsize=12, color="yellow")
         
-        # Achievement notification display
+        # Achievement notification display (subtle side display)
         if progress_tracker:
             achievement_info = progress_tracker.get_achievement_display_info()
             if achievement_info:
                 achievement_text, fade_alpha = achievement_info
                 
-                # Create achievement display with background
-                achievement_y = HEIGHT // 3
-                
                 # Only show achievement if fade_alpha is significant (avoid flicker)
                 if fade_alpha > 0.1:
-                    # Draw achievement background (simple solid colors)
-                    bg_rect = Rect(50, achievement_y - 40, WIDTH - 100, 80)
-                    screen.draw.filled_rect(bg_rect, 'black')  # Black background
-                    screen.draw.rect(bg_rect, 'gold')  # Gold border
+                    # Subtle side achievement display
+                    trophy_x = WIDTH - 250  # Right side of screen
+                    trophy_y = 100
                     
-                    # Draw achievement text (simple colors)
-                    screen.draw.text("🏆 ACHIEVEMENT UNLOCKED! 🏆", 
-                                    center=(WIDTH//2, achievement_y - 15), 
-                                    fontsize=24, color='gold')
+                    # Draw subtle background
+                    bg_rect = Rect(trophy_x - 10, trophy_y - 10, 240, 60)
+                    screen.draw.filled_rect(bg_rect, (0, 0, 0))  # Black background
+                    screen.draw.rect(bg_rect, (255, 215, 0))  # Gold border
+                    
+                    # Draw trophy icon
+                    screen.draw.text("🏆", 
+                                    topleft=(trophy_x, trophy_y), 
+                                    fontsize=20, color='gold')
+                    
+                    # Draw achievement text (smaller, more subtle)
+                    screen.draw.text("Achievement!", 
+                                    topleft=(trophy_x + 30, trophy_y), 
+                                    fontsize=14, color='gold')
                     screen.draw.text(achievement_text, 
-                                    center=(WIDTH//2, achievement_y + 15), 
-                                    fontsize=20, color='white')
+                                    topleft=(trophy_x + 30, trophy_y + 18), 
+                                    fontsize=12, color='white')
     elif game_state == GameState.GAME_OVER:
         # Game over screen
         screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 

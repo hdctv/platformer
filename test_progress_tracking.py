@@ -43,8 +43,8 @@ def test_height_tracking():
     
     assert tracker.current_height == 1200
     assert tracker.max_height_reached == 1200
-    # Score should be 1200 + 100 (milestone bonus for reaching 1000)
-    assert tracker.score == 1300
+    # Score should be 1200 (no milestone bonus since first milestone is at 5000)
+    assert tracker.score == 1200
     
     print("✅ Height tracking test passed!")
 
@@ -56,23 +56,24 @@ def test_milestone_detection():
     
     print("\nTesting milestone detection...")
     
-    # Test first milestone at height 1000
-    camera.y = -1000
+    # Test first milestone at height 5000
+    camera.y = -5000
     tracker.update(frog, camera)
     
-    assert 1000 in tracker.milestones_reached
-    assert tracker.score == 1000 + 100  # Height + milestone bonus
+    assert 5000 in tracker.milestones_reached
+    assert tracker.score == 5000 + 100  # Height + milestone bonus
     
-    # Test multiple milestones - jump directly to 2500 to trigger both milestones
+    # Test multiple milestones - jump directly to 15000 to trigger multiple milestones
     tracker2 = ProgressTracker()  # Fresh tracker
     camera2 = Camera()
-    camera2.y = -2500  # Should trigger both 1000 and 2000 milestones
+    camera2.y = -15000  # Should trigger 5000, 10000, and 15000 milestones
     tracker2.update(frog, camera2)
     
-    assert 1000 in tracker2.milestones_reached
-    assert 2000 in tracker2.milestones_reached
-    # Score should be 2500 + 200 (two milestone bonuses)
-    assert tracker2.score == 2500 + 200
+    assert 5000 in tracker2.milestones_reached
+    assert 10000 in tracker2.milestones_reached
+    assert 15000 in tracker2.milestones_reached
+    # Score should be 15000 + 300 (three milestone bonuses)
+    assert tracker2.score == 15000 + 300
     
     print("✅ Milestone detection test passed!")
 
@@ -137,16 +138,16 @@ def test_next_milestone():
     
     print("\nTesting next milestone detection...")
     
-    # Initially, first milestone should be 1000
+    # Initially, first milestone should be 5000
     next_milestone = tracker.get_next_milestone()
-    assert next_milestone[0] == 1000
-    assert "Conveyor" in next_milestone[1]
+    assert next_milestone[0] == 5000
+    assert "Novice" in next_milestone[1]
     
-    # After reaching 1000, next should be 2000
-    tracker.milestones_reached.add(1000)
+    # After reaching 5000, next should be 10000
+    tracker.milestones_reached.add(5000)
     next_milestone = tracker.get_next_milestone()
-    assert next_milestone[0] == 2000
-    assert "Breakable" in next_milestone[1]
+    assert next_milestone[0] == 10000
+    assert "Master" in next_milestone[1]
     
     print("✅ Next milestone test passed!")
 
@@ -159,7 +160,7 @@ def test_statistics_summary():
     print("\nTesting statistics summary...")
     
     # Set up some progress
-    camera.y = -3000
+    camera.y = -8000
     tracker.update(frog, camera)
     tracker.record_platform_landing(PlatformType.NORMAL)
     tracker.record_platform_landing(PlatformType.BOUNCY)
@@ -167,14 +168,14 @@ def test_statistics_summary():
     
     stats = tracker.get_statistics()
     
-    assert stats['current_height'] == 3000
-    assert stats['max_height_reached'] == 3000
-    assert stats['score'] > 3000  # Should include bonuses
-    assert stats['milestones_reached'] >= 2  # Should have reached 1000 and 2000
+    assert stats['current_height'] == 8000
+    assert stats['max_height_reached'] == 8000
+    assert stats['score'] > 8000  # Should include bonuses
+    assert stats['milestones_reached'] >= 1  # Should have reached 5000
     assert stats['platforms_landed_on'] == 2
     assert stats['bounces_performed'] == 1
     assert stats['harmful_platforms_avoided'] == 1
-    assert stats['progress_percentage'] == 30.0
+    assert stats['progress_percentage'] == 80.0  # 8000/10000 = 80%
     
     print("✅ Statistics summary test passed!")
 
@@ -221,7 +222,7 @@ def demo_progress_tracking():
     frog = Frog(400, 300)
     
     # Simulate a game session
-    heights = [0, 500, 1200, 2500, 4000, 7500]
+    heights = [0, 2000, 5000, 10000, 15000, 25000]
     
     for height in heights:
         camera.y = -height

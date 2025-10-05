@@ -68,17 +68,17 @@ The game features **6 different platform types** that are progressively introduc
 
 Unlock achievements as you reach new heights! Each milestone unlocks new platform types and provides bonus points:
 
-- **🎯 Height 1000**: "First Conveyor Platforms" - Conveyor platforms introduced
-- **🎯 Height 2000**: "Breakable Platforms Introduced" - Breakable platforms appear
-- **🎯 Height 3000**: "Moving Platforms Appear" - Moving platforms added
-- **🎯 Height 3500**: "Vertical Platforms Added" - Vertical platforms introduced
-- **🎯 Height 3750**: "Bouncy Platforms Available" - Bouncy platforms unlocked
-- **🎯 Height 4000**: "Harmful Platforms - Danger Zone!" - Harmful platforms appear
-- **🎯 Height 5000**: "Master Climber" - You're getting good!
-- **🎯 Height 7500**: "Platform Expert" - Mastery level reached
-- **🎯 Height 10000**: "Sky Walker" - Ultimate achievement!
+- **🎯 Height 5000**: "Platform Novice" - First Major Milestone
+- **🎯 Height 10000**: "Conveyor Master" - Mastered Sideways Movement
+- **🎯 Height 15000**: "Destruction Survivor" - Breakable Platform Expert
+- **🎯 Height 20000**: "Motion Controller" - Moving Platform Specialist
+- **🎯 Height 25000**: "Vertical Voyager" - Elevator Platform Pro
+- **🎯 Height 30000**: "Bounce Champion" - Bouncy Platform Master
+- **🎯 Height 40000**: "Danger Navigator" - Harmful Platform Survivor
+- **🎯 Height 60000**: "Sky Climber" - Reached the Clouds
+- **🎯 Height 100000**: "Legendary Frog" - Ultimate Sky Walker!
 
-**Achievement notifications** appear on screen with gold borders and trophy emojis when unlocked!
+**Achievement notifications** appear as subtle side displays with trophy icons and detailed descriptions when unlocked!
 
 ## 📊 Progressive Difficulty
 
