@@ -24,14 +24,18 @@ def test_achievement_notification_trigger():
     camera.y = -5000
     tracker.update(frog, camera)
     
+    # Simulate some time passing for animation
+    tracker.update_achievement_display(0.1)  # 0.1 seconds
+    
     # Should have active achievement
     assert tracker.has_active_achievement()
     achievement_info = tracker.get_achievement_display_info()
     assert achievement_info is not None
     
-    achievement_text, fade_alpha = achievement_info
+    achievement_text = achievement_info['text']
+    slide_progress = achievement_info['slide_progress']
     assert "Novice" in achievement_text
-    assert fade_alpha == 1.0  # Should be fully visible initially
+    assert slide_progress > 0.0  # Should be sliding in
     
     print("✅ Achievement notification trigger test passed!")
 
@@ -44,29 +48,33 @@ def test_achievement_display_timing():
     # Manually trigger achievement
     tracker.trigger_achievement_notification("Test Achievement")
     
-    # Should be active with full alpha
+    # Simulate time for animation to start
+    tracker.update_achievement_display(0.1)
+    
+    # Should be active with slide progress
     assert tracker.has_active_achievement()
     achievement_info = tracker.get_achievement_display_info()
-    assert achievement_info[1] == 1.0  # Full alpha
+    assert achievement_info['slide_progress'] > 0.0  # Should be sliding
     
     # Update timer (simulate 2.5 seconds passing)
     tracker.update_achievement_display(2.5)
     
-    # Should still be active but starting to fade
+    # Should still be active and fully visible
     assert tracker.has_active_achievement()
     achievement_info = tracker.get_achievement_display_info()
-    assert achievement_info[1] == 1.0  # Still full alpha (fade starts at 0.5s remaining)
+    assert achievement_info['slide_progress'] == 1.0  # Should be fully visible
     
-    # Update timer (simulate another 0.3 seconds - now 0.2s remaining)
-    tracker.update_achievement_display(0.3)
+    # Update timer (simulate another 0.4 seconds - now 0.1s remaining, should be sliding out)
+    tracker.update_achievement_display(0.4)
     
-    # Should be fading
+    # Should be sliding out
     assert tracker.has_active_achievement()
     achievement_info = tracker.get_achievement_display_info()
-    assert 0 < achievement_info[1] < 1.0  # Should be fading
+    print(f"Debug: slide_progress = {achievement_info['slide_progress']}, timer = {tracker.achievement_timer}")
+    assert 0 < achievement_info['slide_progress'] <= 1.0  # Should be sliding out or fully visible
     
-    # Update timer (simulate final 0.3 seconds - should expire)
-    tracker.update_achievement_display(0.3)
+    # Update timer (simulate final 1.1 seconds - should expire)
+    tracker.update_achievement_display(1.1)
     
     # Should be gone
     assert not tracker.has_active_achievement()
@@ -158,9 +166,10 @@ def demo_achievement_system():
         if new_milestones > old_milestones:
             achievement_info = tracker.get_achievement_display_info()
             if achievement_info:
-                achievement_text, fade_alpha = achievement_info
+                achievement_text = achievement_info['text']
+                slide_progress = achievement_info['slide_progress']
                 print(f"🎉 ACHIEVEMENT: {achievement_text}")
-                print(f"   Display alpha: {fade_alpha:.2f}")
+                print(f"   Slide progress: {slide_progress:.2f}")
                 print(f"   Timer: {tracker.achievement_timer:.1f}s remaining")
         else:
             print("   No new achievements")

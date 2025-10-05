@@ -1234,7 +1234,41 @@ class ProgressTracker:
         # Achievement notification system
         self.active_achievement = None  # Current achievement being displayed
         self.achievement_timer = 0.0    # Timer for achievement display
-        self.achievement_duration = 3.0  # How long to show achievement (seconds)
+        self.achievement_duration = 4.0  # How long to show achievement (seconds)
+        self.achievement_slide_progress = 0.0  # Animation progress (0.0 to 1.0)
+        self.slide_in_duration = 0.5   # Time to slide in (seconds)
+        self.slide_out_duration = 0.5  # Time to slide out (seconds)
+        
+        # Load trophy image
+        self.trophy_image = None
+        self.trophy_loaded = False
+        self.load_trophy_image()
+    
+    def load_trophy_image(self):
+        """
+        Load the trophy image with transparency
+        """
+        try:
+            import pygame
+            # Initialize pygame display if not already done (for tests)
+            if not pygame.get_init():
+                pygame.init()
+            try:
+                if not pygame.display.get_surface():
+                    pygame.display.set_mode((1, 1))  # Minimal display for image loading
+            except pygame.error:
+                # If display can't be initialized, skip image loading
+                self.trophy_loaded = False
+                return
+            
+            # Load the trophy image
+            self.trophy_image = pygame.image.load('trophy.png').convert()
+            # Set white (255, 255, 255) as the transparent color
+            self.trophy_image.set_colorkey((255, 255, 255))
+            self.trophy_loaded = True
+        except Exception as e:
+            print(f"Warning: Could not load trophy.png: {e}")
+            self.trophy_loaded = False
     
     def update(self, frog, camera):
         """
@@ -1292,15 +1326,48 @@ class ProgressTracker:
     
     def update_achievement_display(self, dt):
         """
-        Update achievement display timer
+        Update achievement display timer and sliding animation
         
         Args:
             dt (float): Delta time in seconds
         """
         if self.achievement_timer > 0:
             self.achievement_timer -= dt
+            
+            # Calculate slide animation progress
+            total_time = self.achievement_duration
+            time_remaining = self.achievement_timer
+            
+            if time_remaining > (total_time - self.slide_in_duration):
+                # Sliding in phase
+                slide_time = total_time - time_remaining
+                self.achievement_slide_progress = slide_time / self.slide_in_duration
+                self.achievement_slide_progress = min(1.0, self.achievement_slide_progress)
+            elif time_remaining < self.slide_out_duration:
+                # Sliding out phase
+                self.achievement_slide_progress = time_remaining / self.slide_out_duration
+            else:
+                # Fully visible phase
+                self.achievement_slide_progress = 1.0
+            
+            # Apply easing for smooth animation
+            self.achievement_slide_progress = self.ease_out_cubic(self.achievement_slide_progress)
+            
             if self.achievement_timer <= 0:
                 self.active_achievement = None
+                self.achievement_slide_progress = 0.0
+    
+    def ease_out_cubic(self, t):
+        """
+        Cubic ease-out function for smooth animation
+        
+        Args:
+            t (float): Input value (0.0 to 1.0)
+            
+        Returns:
+            float: Eased value (0.0 to 1.0)
+        """
+        return 1 - pow(1 - t, 3)
     
     def has_active_achievement(self):
         """
@@ -1313,22 +1380,20 @@ class ProgressTracker:
     
     def get_achievement_display_info(self):
         """
-        Get achievement display information
+        Get achievement display information including slide animation
         
         Returns:
-            tuple: (achievement_text, fade_alpha) or None if no active achievement
+            dict: Achievement display info or None if no active achievement
         """
         if not self.has_active_achievement():
             return None
         
-        # Calculate fade effect (fade out in last 0.5 seconds)
-        fade_start = 0.5
-        if self.achievement_timer <= fade_start:
-            fade_alpha = self.achievement_timer / fade_start
-        else:
-            fade_alpha = 1.0
-        
-        return (self.active_achievement, fade_alpha)
+        return {
+            'text': self.active_achievement,
+            'slide_progress': self.achievement_slide_progress,
+            'trophy_image': self.trophy_image if self.trophy_loaded else None,
+            'timer_remaining': self.achievement_timer
+        }
     
     def get_progress_percentage(self, target_height=10000):
         """
@@ -1411,6 +1476,7 @@ class ProgressTracker:
         # Reset achievement notifications
         self.active_achievement = None
         self.achievement_timer = 0.0
+        self.achievement_slide_progress = 0.0
 
 # Camera Class for scroll management
 class Camera:
@@ -1808,35 +1874,81 @@ def draw():
                 screen.draw.text(f"Created={stats['platforms_created']} Reused={stats['platforms_reused']} Efficiency={stats['reuse_efficiency']:.1f}%", 
                                 topleft=(10, 65), fontsize=12, color="yellow")
         
-        # Achievement notification display (subtle side display)
+        # Achievement notification display (sliding trophy animation)
         if progress_tracker:
             achievement_info = progress_tracker.get_achievement_display_info()
             if achievement_info:
-                achievement_text, fade_alpha = achievement_info
+                slide_progress = achievement_info['slide_progress']
+                achievement_text = achievement_info['text']
+                trophy_image = achievement_info['trophy_image']
                 
-                # Only show achievement if fade_alpha is significant (avoid flicker)
-                if fade_alpha > 0.1:
-                    # Subtle side achievement display
-                    trophy_x = WIDTH - 250  # Right side of screen
-                    trophy_y = 100
+                # Only show achievement if slide progress is significant
+                if slide_progress > 0.01:
+                    # Calculate sliding position (slide in from top-right)
+                    final_x = WIDTH - 280  # Final position
+                    final_y = 80
+                    start_x = WIDTH + 50   # Start off-screen to the right
+                    start_y = -50          # Start above screen
                     
-                    # Draw subtle background
-                    bg_rect = Rect(trophy_x - 10, trophy_y - 10, 240, 60)
-                    screen.draw.filled_rect(bg_rect, (0, 0, 0))  # Black background
-                    screen.draw.rect(bg_rect, (255, 215, 0))  # Gold border
+                    # Interpolate position based on slide progress
+                    current_x = start_x + (final_x - start_x) * slide_progress
+                    current_y = start_y + (final_y - start_y) * slide_progress
                     
-                    # Draw trophy icon
-                    screen.draw.text("🏆", 
-                                    topleft=(trophy_x, trophy_y), 
-                                    fontsize=20, color='gold')
+                    # Draw achievement background with rounded corners effect
+                    bg_width = 270
+                    bg_height = 70
+                    bg_rect = Rect(current_x - 5, current_y - 5, bg_width, bg_height)
                     
-                    # Draw achievement text (smaller, more subtle)
-                    screen.draw.text("Achievement!", 
-                                    topleft=(trophy_x + 30, trophy_y), 
-                                    fontsize=14, color='gold')
-                    screen.draw.text(achievement_text, 
-                                    topleft=(trophy_x + 30, trophy_y + 18), 
-                                    fontsize=12, color='white')
+                    # Draw background with subtle shadow effect
+                    shadow_rect = Rect(current_x - 2, current_y - 2, bg_width, bg_height)
+                    screen.draw.filled_rect(shadow_rect, (10, 10, 10))  # Dark shadow
+                    screen.draw.filled_rect(bg_rect, (25, 25, 50))  # Dark blue background
+                    screen.draw.rect(bg_rect, (255, 215, 0), 2)  # Gold border
+                    
+                    # Draw trophy image or fallback emoji
+                    trophy_x = current_x + 10
+                    trophy_y = current_y + 10
+                    
+                    if trophy_image:
+                        # Draw the actual trophy.png image
+                        screen.blit(trophy_image, (trophy_x, trophy_y))
+                        text_start_x = trophy_x + 50  # Adjust based on trophy image width
+                    else:
+                        # Fallback to emoji if image failed to load
+                        screen.draw.text("🏆", 
+                                        topleft=(trophy_x, trophy_y), 
+                                        fontsize=24, color='gold')
+                        text_start_x = trophy_x + 35
+                    
+                    # Draw achievement text with better formatting
+                    screen.draw.text("ACHIEVEMENT UNLOCKED!", 
+                                    topleft=(text_start_x, current_y + 8), 
+                                    fontsize=12, color='gold')
+                    
+                    # Split achievement text into multiple lines if too long
+                    if len(achievement_text) > 35:
+                        # Split at " - " if present
+                        if " - " in achievement_text:
+                            title, description = achievement_text.split(" - ", 1)
+                            screen.draw.text(title, 
+                                            topleft=(text_start_x, current_y + 25), 
+                                            fontsize=11, color='white')
+                            screen.draw.text(description, 
+                                            topleft=(text_start_x, current_y + 40), 
+                                            fontsize=10, color='lightgray')
+                        else:
+                            # Just wrap long text
+                            screen.draw.text(achievement_text[:35], 
+                                            topleft=(text_start_x, current_y + 25), 
+                                            fontsize=11, color='white')
+                            if len(achievement_text) > 35:
+                                screen.draw.text(achievement_text[35:], 
+                                                topleft=(text_start_x, current_y + 40), 
+                                                fontsize=10, color='lightgray')
+                    else:
+                        screen.draw.text(achievement_text, 
+                                        topleft=(text_start_x, current_y + 30), 
+                                        fontsize=11, color='white')
     elif game_state == GameState.GAME_OVER:
         # Game over screen
         screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 
