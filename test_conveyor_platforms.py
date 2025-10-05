@@ -30,7 +30,7 @@ class TestConveyorPlatformMechanics(unittest.TestCase):
         self.assertEqual(platform.color, 'gray')
         self.assertTrue(hasattr(platform, 'conveyor_speed'))
         self.assertTrue(hasattr(platform, 'conveyor_direction'))
-        self.assertEqual(platform.conveyor_speed, 4.0)
+        self.assertEqual(platform.conveyor_speed, 3.5)
         self.assertIn(platform.conveyor_direction, [-1, 1])  # Should be either left or right
     
     def test_frog_conveyor_state_tracking(self):
@@ -71,7 +71,7 @@ class TestConveyorPlatformMechanics(unittest.TestCase):
         self.frog.update()
         
         # Velocity should be increased by conveyor effect
-        expected_increase = self.conveyor_platform.conveyor_speed * self.conveyor_platform.conveyor_direction * 0.8
+        expected_increase = self.conveyor_platform.conveyor_speed * self.conveyor_platform.conveyor_direction * 0.5
         self.assertEqual(self.frog.vx, initial_vx + expected_increase)
     
     def test_normal_control_on_conveyor(self):

@@ -122,11 +122,12 @@ class Platform:
         if frog.vy > 0 and frog.y - frog.height//2 <= self.y + self.height:
             return True
         
-        # Special case for conveyor platforms: maintain contact even when not falling
+        # Special case for conveyor platforms: maintain contact only when frog is properly on platform
         # This allows continuous conveyor effect while frog is on the platform
         if (self.platform_type == PlatformType.CONVEYOR and 
             frog.vy >= 0 and  # Not jumping up
-            abs(frog.y - frog.height//2 - self.y) <= 5):  # Close to platform surface
+            frog.on_ground and  # Must be grounded first
+            abs(frog.y - frog.height//2 - self.y) <= 2):  # Very close to platform surface
             return True
             
         return False
@@ -152,7 +153,7 @@ class Platform:
         elif self.platform_type == PlatformType.CONVEYOR:
             self.friction = 1.0  # Normal friction
             self.color = 'gray'
-            self.conveyor_speed = 4.0  # Pixels per frame sideways movement
+            self.conveyor_speed = 3.5  # Pixels per frame sideways movement
             self.conveyor_direction = 1 if self.x % 2 == 0 else -1  # Alternate directions based on position
             
         elif self.platform_type == PlatformType.BREAKABLE:
@@ -356,7 +357,13 @@ class Frog:
         # Handle continuous conveyor effects while on conveyor platform
         if self.on_conveyor and self.conveyor_platform:
             # Apply continuous conveyor movement
-            self.vx += self.conveyor_platform.conveyor_speed * self.conveyor_platform.conveyor_direction * 0.8
+            conveyor_push = self.conveyor_platform.conveyor_speed * self.conveyor_platform.conveyor_direction * 0.5
+            self.vx += conveyor_push
+            
+            # Cap maximum conveyor velocity to prevent extreme speeds
+            max_conveyor_speed = 8.0
+            if abs(self.vx) > max_conveyor_speed:
+                self.vx = max_conveyor_speed if self.vx > 0 else -max_conveyor_speed
         
         # Reset ground state - will be set by platform collision if applicable
         self.on_ground = False
