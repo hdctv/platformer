@@ -1817,23 +1817,20 @@ def draw():
                 # Create achievement display with background
                 achievement_y = HEIGHT // 3
                 
-                # Draw background flash effect
-                flash_alpha = int(255 * fade_alpha * 0.3)  # 30% opacity background
-                flash_color = (255, 255, 255, flash_alpha)  # White flash
-                
-                # Draw achievement background
-                bg_rect = Rect(50, achievement_y - 40, WIDTH - 100, 80)
-                screen.draw.filled_rect(bg_rect, (0, 0, 0, int(128 * fade_alpha)))  # Semi-transparent black
-                screen.draw.rect(bg_rect, (255, 215, 0, int(255 * fade_alpha)), 3)  # Gold border
-                
-                # Draw achievement text
-                text_alpha = int(255 * fade_alpha)
-                screen.draw.text("🏆 ACHIEVEMENT UNLOCKED! 🏆", 
-                                center=(WIDTH//2, achievement_y - 15), 
-                                fontsize=24, color=(255, 215, 0, text_alpha))  # Gold
-                screen.draw.text(achievement_text, 
-                                center=(WIDTH//2, achievement_y + 15), 
-                                fontsize=20, color=(255, 255, 255, text_alpha))  # White
+                # Only show achievement if fade_alpha is significant (avoid flicker)
+                if fade_alpha > 0.1:
+                    # Draw achievement background (simple solid colors)
+                    bg_rect = Rect(50, achievement_y - 40, WIDTH - 100, 80)
+                    screen.draw.filled_rect(bg_rect, 'black')  # Black background
+                    screen.draw.rect(bg_rect, 'gold')  # Gold border
+                    
+                    # Draw achievement text (simple colors)
+                    screen.draw.text("🏆 ACHIEVEMENT UNLOCKED! 🏆", 
+                                    center=(WIDTH//2, achievement_y - 15), 
+                                    fontsize=24, color='gold')
+                    screen.draw.text(achievement_text, 
+                                    center=(WIDTH//2, achievement_y + 15), 
+                                    fontsize=20, color='white')
     elif game_state == GameState.GAME_OVER:
         # Game over screen
         screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2 - 60), 
