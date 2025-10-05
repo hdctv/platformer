@@ -387,10 +387,17 @@ class Frog:
         """
         base_speed = GAME_CONFIG['horizontal_speed']
         
-        # Normal movement (conveyor platforms don't affect control responsiveness)
-        # Only override velocity if there's actual input, otherwise preserve existing velocity (e.g., from conveyors)
         if direction != 0:
+            # Player is giving input - set velocity directly
             self.vx = direction * base_speed
+        else:
+            # No input - behavior depends on platform type
+            if self.on_conveyor and self.conveyor_platform:
+                # On conveyor: let conveyor effect continue (don't change vx)
+                pass
+            else:
+                # On normal platform: stop horizontal movement
+                self.vx = 0
     
     def check_platform_collision(self, platforms):
         """
